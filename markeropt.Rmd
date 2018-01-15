@@ -189,9 +189,12 @@ ctg=c(rep(1, 12), rep(2, 12),rep(3, 12), rep(4, 12), rep(5, 12), rep(6, 12), rep
 
 size= c(rep("P",6), "I", "I", rep("P",8),rep("I",4), rep("I",4), rep("P", 32), rep("I", 4), rep("P",27), rep("I", 8), "P", rep("I", 4), rep("I", 8)), 
 
-moult = c(rep("", 80), 0,0,10,20,rep("", 11),20,"","", 0,10,"", 20,rep("", 6) )
+moult = c(rep("", 80), 0,0,10,20,rep("", 11),20,"","", 0,10,"", 20,rep("", 6) ),
+
+ exp= c(rep("conc",8), rep("OvY", 12), rep("cut", 4), rep("OvY",4), rep("regen", 4), rep("OvY",8), rep("regen", 4), rep("OvY",4), rep("OvY", 12), rep("regen", 12), rep("OvY", 8), rep("moult", 4),rep("regen", 9), "OvY", "OvY", "moult",  "OvY", "OvY", "moult", "moult", "moult", "moult", rep("regen", 6) )
 
 )
+
 
 sampleinfo$flag <- FALSE
 sampleinfo$flag[c(5,6,7,8,25,31,32, 54, 59, 66,67, 78,90, 97,101)] <- TRUE
@@ -346,12 +349,60 @@ ggplot(data=mcu, aes(x=value, fill=Var2))+
 
 ```
 
-#What genes show a 
+
+
+#What is our best set of markers?
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY"))
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+old <- t(subset(t(md), si$age == "O"))
+young <- t(subset(t(md), si$age == "Y"))
+nmd <- as.data.frame(md/rowMeans(md))
+nmd$sname <- substr(rownames(md), 1,2)
+nmd <- nmd[order(nmd$sname),]
+nmd$up <- codeset$log2FoldChange > 0
+
+oy <- cbind(old, young)
+t.result <- apply(oy, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oy)]))
+nmd$p_value <- unlist(lapply(t.result, function(x) x$p.value))
+
+
+nmd$sname <- factor(nmd$sname, levels=nmd$sname[order(nmd$p_value)])
+
+gnmd <- subset(nmd, nmd$p_value <0.05)
+
+mnmd <- melt(nmd, id.vars=c("p_value", "sname", "up"))
+mnmd$age <- "old"
+mnmd$sig <- mnmd$p_value <0.05
+mnmd$age[mnmd$variable %in% colnames(young)] <- "young"
+ggplot(mnmd, aes(x= sname, y=value, colour=age)) +
+  theme_bw()+
+  geom_point(size=1, shape=95)+
+ stat_summary()+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~up+sig, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "red3"))+ 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))
+
+ggplot(mnmd, aes(x= sname, y=value, colour=age)) +
+  theme_bw()+
+#  geom_point(size=1, shape=95)+
+#  stat_summary()+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~up+sig, space="free",scales="free" )+
+  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "red3"))+ 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))
+```
+
+#Nikos plot
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 md <- ctg1to9
-old <- t(subset(t(md), sampleinfo$type =="O" & sampleinfo$qual =="ok" &sampleinfo$ctg>2))
+old <- t(subset(t(md), sampleinfo$type =="O" &  sampleinfo$sex == "F" & sampleinfo$qual =="ok" &sampleinfo$ctg %in% c(3,4,5,7)))
 
-young <- t(subset(t(md), sampleinfo$type =="Y" & sampleinfo$qual =="ok" &sampleinfo$ctg>2))
+young <- t(subset(t(md), sampleinfo$type =="Y" & sampleinfo$sex== "F" & sampleinfo$qual =="ok"&sampleinfo$ctg %in% c(3,4,5,7)))
 
 regen <- t(subset(t(md), sampleinfo$type =="OR" & sampleinfo$qual =="ok" &sampleinfo$ctg>2))
 
@@ -366,27 +417,29 @@ nik<- data.frame(
 
 snik=subset(nik, nik$in61==TRUE)
 
-a=ggplot(data=snik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname))+
+a=ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=in61))+
   geom_hline(yintercept=0, colour="black")+
   geom_vline(xintercept=0, colour="black")+
   theme_bw()+
   xlim(-6,+6)+
   ylim(-6,6)+
-#  scale_colour_manual(values= c("darkblue", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
+ scale_colour_manual(values= c("forest green", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
   xlab("Young vs Old Log2 Fold Change") +
   ylab("Regenerated vs Old Log2 Fold Change")+
 #  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
 #  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
-  geom_point( size=8, colour="cornflower blue", alpha=0.4)+
+  geom_point( size=8, alpha=0.4)+
   geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
   theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
-  geom_text(colour="cornflower blue")+
-  coord_fixed(ratio=1)
+  geom_text()+
+  coord_fixed(ratio=1)+
+  facet_wrap(~in61)+
+  theme(strip.text=element_blank())
   
 
 
 
-ggsave(plot=a, height=7.5,width=7.5,dpi=200, device="png", filename=paste("nplot.png"), limitsize = FALSE,bg = "transparent")
+ggsave(plot=a, height=7.5,width=15,dpi=200, device="png", filename=paste("nplot.png"), limitsize = FALSE,bg = "transparent")
 
 
 ```
