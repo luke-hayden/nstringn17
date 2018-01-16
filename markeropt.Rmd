@@ -14,24 +14,14 @@ output: html_document
 #biocLite("DESeq2")
 
 library(ggplot2)
-library(DESeq2)
 library(rmarkdown)
-library(pracma)
 library(gplots)
 library(RColorBrewer)
 library(reshape2)
 library(scales)
 library(ggbiplot)
-library(gtools)
 library(devtools)
 library(NanoStringNorm)
-library(ggthemes)
-library(grid)
-library(gridExtra)
-library(sjstats)
-library(matrixStats)
-library(gbutils)
-library(class)
 
 multiplot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
   require(grid)
@@ -212,152 +202,16 @@ sampleinfo$qual[c(25 , 31 , 32 , 49,  54 , 67  ,76,  90, 101, 104, 107)] <- "bad
 
 ```
 
-#Quality testing
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
-
-mc <- melt(ctg1to9)
-mc$exp <- mc$value > 1
-mc$qual <- mc$Var2 %in% sampleinfo$sample[sampleinfo$qual == "ok"]
-mc$flag <- mc$Var2 %in% sampleinfo$sample[sampleinfo$flag == TRUE]
-ggplot(mc, aes(y=value, x=Var1, colour=qual)) +  theme_bw() +  geom_point(alpha=0.3) +  facet_wrap(~Var2, ncol=12) +  scale_y_log10() +  scale_colour_manual(values=c("red3", "dark blue")) +  theme(axis.text.x = element_blank())
-
-
-ggplot(mc, aes(y=value, x=Var2, colour=flag)) +  theme_bw() +  geom_point(alpha=0.1) +  scale_y_log10() +  scale_colour_manual(values=c("red3", "dark blue")) +  theme(axis.text.x = element_text(angle = 80, hjust =1, size=7))
-
-
-
-```
-
-#k-nearest neighbours approach to measuring sample quality
-How can we objectively measure the quality of a sample? We'll try a simple machine learning approach, whereby we take our first 
-
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
-#Take the first 4 cartridges only:
-cdat <- as.data.frame(ctg1to9un)
-
-
-
-orderval <- function(x) {
-  x <- x[order(x)]
-}
-
-cdat.order <- apply(cdat, 2, order)
-cdat.orderval <- apply(cdat, 2, orderval)
-
-
-ts.order <- cdat.orderval[,1:48]
-ts.orderval <- t(cdat.orderval[,1:48])
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(ts.order))
-
-ts.orderval.norm <- ts.orderval/rowMax(ts.orderval)
-
-trainview<- melt(t(ts.orderval.norm))
-trainview$flag <- trainview$Var2 %in% sampleinfo$sample[sampleinfo$flag == TRUE]
-
-ggplot(data=trainview, aes(x=Var1, y=value, colour=flag))+
-  geom_point()+
-  scale_y_log10()+
-  facet_wrap(~Var2)+
-  ggtitle("kNN data quality testing: training dataset") +
-  scale_colour_manual(values=c("forest green", "red3"))
-
-es.orderval <- t(cdat.orderval[,49:108])
-es.orderval.norm <- es.orderval/rowMax(es.orderval)
-
-qualknn <- knn(train=ts.orderval.norm, test=es.orderval.norm, cl=si$flag, prob=TRUE, k=10)
-
-
-
-preddf <- data.frame(sample=rownames(es.orderval), value=as.factor(qualknn), score= attr(qualknn, "prob"))
-
-#testview$predval <- testview$Var2 %in% preddf$sample[preddf == TRUE]
-  
-  
-testview<- as.data.frame(t(es.orderval.norm))
-#testview$predval <- as.factor(qualknn)
-#testview$testscore <- attr(qualknn, "prob")
-
-mtestview <- melt(testview)
-mtestview$predval <- mtestview$variable %in% preddf$sample[preddf$value == TRUE]
-mtestview$order <- seq(1:195)
-mtestview$predscore <- rep(preddf$score, each=nrow(testview))
-mtestview$arbqual <- mtestview$variable %in% sampleinfo$sample[sampleinfo$qual == "ok"]
-
- 
-ggplot(data=mtestview, aes(x=order, y=value, colour=predscore))+
-  geom_point()+
-  scale_y_log10()+
-  facet_wrap(~variable)+
-  geom_text(inherit.aes=FALSE, aes(label=arbqual, x=100,y=0.5))+
-  scale_color_distiller(palette="Spectral")
-
-
-```
-
-This won't do the job!
-Let's try another approach
-
-
-
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
-
-
-ggplot(data=as.data.frame(ctg1to9), aes(x=C200))+
-  geom_histogram()+
-  scale_x_log10()
-
-
-
-ggplot(data=mc, aes(x=value, fill=qual))+
-  geom_histogram()+
-  scale_x_log10()+
-  facet_wrap(~Var2) +
-  scale_fill_manual(values=c("red3", "dark blue"))
-
-
-
-ggplot(data=mc, aes(x=value, fill=qual))+
-  geom_histogram()+
-  scale_x_log10()+
-  facet_wrap(~Var2) +
-  scale_fill_manual(values=c("red3", "dark blue"))
-
-mcu <- melt(ctg1to9un[,1:6])
-
-
-
-#mcu$exp <- mc$value > 1
-#mcu$qual <- mc$Var2 %in% sampleinfo$sample[sampleinfo$qual == "ok"]
-
-ggplot(data=mcu, aes(x=value))+
-  geom_histogram()+
-  scale_x_log10()+
-  facet_wrap(~Var2) +
-  scale_fill_manual(values=c("red3", "dark blue"))
-mcb <- rbind(cbind(mc,t="norm") ,cbind(mcu, t="un"))
-
-ggplot(data=mcu, aes(x=value, fill=Var2))+
-  geom_histogram(alpha=0.5)+
-  scale_x_log10()+
-  scale_fill_manual(values=c("red3", "dark blue"))
-
-
-
-
-
-```
-
-
 
 #What is our best set of markers?
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY"))
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y") ))
 si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
 old <- t(subset(t(md), si$age == "O"))
 young <- t(subset(t(md), si$age == "Y"))
+
+
 nmd <- as.data.frame(md/rowMeans(md))
 nmd$sname <- substr(rownames(md), 1,2)
 nmd <- nmd[order(nmd$sname),]
@@ -370,31 +224,30 @@ nmd$p_value <- unlist(lapply(t.result, function(x) x$p.value))
 
 nmd$sname <- factor(nmd$sname, levels=nmd$sname[order(nmd$p_value)])
 
-gnmd <- subset(nmd, nmd$p_value <0.05)
+nmd$dir <- "downregulated with age"
+nmd$dir[nmd$up == FALSE] <- "upregulated with age"
 
-mnmd <- melt(nmd, id.vars=c("p_value", "sname", "up"))
+nmd$sig <- nmd$p_value <0.05
+nmd$sp <- substr(nmd$p_value, 1,4)
+
+
+mnmd <- melt(nmd, id.vars=c("p_value", "sname", "up", "dir", "sp", "sig"))
 mnmd$age <- "old"
-mnmd$sig <- mnmd$p_value <0.05
 mnmd$age[mnmd$variable %in% colnames(young)] <- "young"
-ggplot(mnmd, aes(x= sname, y=value, colour=age)) +
+
+
+ggplot(mnmd, aes(x= sname, y=value, colour=age, label=sp)) +
   theme_bw()+
-  geom_point(size=1, shape=95)+
+  geom_point(size=3, shape=95)+
  stat_summary()+
   scale_y_continuous(trans="log2")+
-  facet_grid(~up+sig, space="free",scales="free" )+
+  facet_grid(~dir, space="free",scales="free" )+
 #  geom_boxplot(outlier.shape = NA)+
   scale_colour_manual(values=c("cornflower blue", "red3"))+ 
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))+
+  geom_text(colour="black", angle=90, inherit.aes=FALSE, data=nmd, aes(x=sname, y=0, label=sp, alpha=sig))
 
-ggplot(mnmd, aes(x= sname, y=value, colour=age)) +
-  theme_bw()+
-#  geom_point(size=1, shape=95)+
-#  stat_summary()+
-  scale_y_continuous(trans="log2")+
-  facet_grid(~up+sig, space="free",scales="free" )+
-  geom_boxplot(outlier.shape = NA)+
-  scale_colour_manual(values=c("cornflower blue", "red3"))+ 
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))
+
 ```
 
 #Nikos plot

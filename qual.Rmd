@@ -266,7 +266,7 @@ es.orderval <- t(cdat.orderval[,49:108])
 es.orderval.norm <- es.orderval/rowMax(es.orderval)
 
 qualknn <- knn(train=ts.orderval.norm, test=es.orderval.norm, cl=si$flag, prob=TRUE, k=10)
-
+-
 
 
 preddf <- data.frame(sample=rownames(es.orderval), value=as.factor(qualknn), score= attr(qualknn, "prob"))
