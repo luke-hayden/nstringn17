@@ -206,16 +206,18 @@ sampleinfo$qual[c(25 , 31 , 32 , 49,  54 , 67  ,76,  90, 101, 104, 107)] <- "bad
 #What is our best set of markers?
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y") ))
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
 si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
 old <- t(subset(t(md), si$age == "O"))
 young <- t(subset(t(md), si$age == "Y"))
-
+regen <- t(subset(t(ctg1to9), sampleinfo$type == "OR" & sampleinfo$qual == "ok"))
 
 nmd <- as.data.frame(md/rowMeans(md))
 nmd$sname <- substr(rownames(md), 1,2)
 nmd <- nmd[order(nmd$sname),]
 nmd$up <- codeset$log2FoldChange > 0
+nmd$YvOl2fc <- foldchange2logratio(foldchange(rowMeans(young), rowMeans(old)))
+nmd$ROvOl2fc <- foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old)))
 
 oy <- cbind(old, young)
 t.result <- apply(oy, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oy)]))
@@ -228,27 +230,126 @@ nmd$dir <- "downregulated with age"
 nmd$dir[nmd$up == FALSE] <- "upregulated with age"
 
 nmd$sig <- nmd$p_value <0.05
-nmd$sp <- substr(nmd$p_value, 1,4)
+nmd$sp <- round(nmd$p_value, 2)
+nmd$sigstar <- ""
+nmd$sigstar[nmd$p_value <0.05] <- "*"
+
+nmd <- nmd[order(nmd$sname),]
+codeset <- codeset[codeset$Customer_Identifier,]
 
 
-mnmd <- melt(nmd, id.vars=c("p_value", "sname", "up", "dir", "sp", "sig"))
+nmd$samedir <- sign(codeset$log2FoldChange) == sign(nmd$YvOl2fc) 
+
+mnmd <- melt(nmd, id.vars=c("p_value", "sname", "up", "dir", "sp", "sig", "sigstar", "samedir", "YvOl2fc", "ROvOl2fc"))
 mnmd$age <- "old"
 mnmd$age[mnmd$variable %in% colnames(young)] <- "young"
+mnmd$ing <- ""
+mnmd$ing[mnmd$variable %in% gm$marker] <- "."
 
-
-ggplot(mnmd, aes(x= sname, y=value, colour=age, label=sp)) +
+ggplot(mnmd, aes(x= sname, y=value, colour=age)) +
   theme_bw()+
-  geom_point(size=3, shape=95)+
+#  geom_point(size=3, shape=95)+
  stat_summary()+
   scale_y_continuous(trans="log2")+
   facet_grid(~dir, space="free",scales="free" )+
 #  geom_boxplot(outlier.shape = NA)+
   scale_colour_manual(values=c("cornflower blue", "red3"))+ 
   theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))+
-  geom_text(colour="black", angle=90, inherit.aes=FALSE, data=nmd, aes(x=sname, y=0, label=sp, alpha=sig))
+  geom_text(colour="black", aes(label=sigstar,y=10))+
+  geom_text(aes(label=variable), size=1)+
+  geom_text(colour="green", aes(label=ing,y=0.015))
+  
 
+
+#  geom_text(colour="black", angle=90, inherit.aes=FALSE, data=nmd, aes(x=sname, y=0, label=sp, alpha=sig))
+
+
+gmnmd <- subset(mnmd, (mnmd$p_value <0.05 & mnmd$samedir == TRUE))
+gmnmd$sname <- as.character(gmnmd$sname)
+
+ggplot(gmnmd, aes(x= sname, y=value, colour=age, label=variable)) +
+  theme_bw()+
+  geom_point(size=3, shape=95)+
+ stat_summary()+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "red3")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=6))+
+  geom_text(size=2)
+```
+
+
+#Nikos plot
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+gnmd <- subset(nmd, nmd$p_value <0.05 & nmd$samedir == TRUE)
+
+a=ggplot(data=gnmd, aes(x=YvOl2fc, y=ROvOl2fc, label=sname))+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-5,+5)+
+  ylim(-5,5)+
+ scale_colour_manual(values= c("forest green", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
+#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
+  geom_point( size=1.5, colour="cornflower blue")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  coord_fixed(ratio=1)+
+  theme(strip.text=element_blank())
+  
+
+
+
+ggsave(plot=a, height=7.5,width=15,dpi=200, device="png", filename=paste("nplot.png"), limitsize = FALSE,bg = "transparent")
+
+
+
+b=ggplot(data=gnmd, aes(x=YvOl2fc, y=0, label=sname))+
+  geom_hline(yintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-5,+5)+
+  ylim(-5,5)+
+ scale_colour_manual(values= c("forest green", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("")+
+#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
+#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
+  geom_point( size=1.5, colour="cornflower blue")+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  coord_fixed(ratio=1)+
+  theme(strip.text=element_blank())
+ 
+
+ggsave(plot=b, height=7.5,width=15,dpi=200, device="png", filename=paste("nplotb.png"), limitsize = FALSE,bg = "transparent")
+ 
+
+c=ggplot(data=gnmd, aes(x=YvOl2fc, y=0, label=sname))+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-5,+5)+
+  ylim(-5,5)+
+ scale_colour_manual(values= c("forest green", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
+#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
+  geom_point( size=1.5, colour="cornflower blue")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  coord_fixed(ratio=1)+
+  theme(strip.text=element_blank())
+
+
+ggsave(plot=c, height=7.5,width=15,dpi=200, device="png", filename=paste("nplotc.png"), limitsize = FALSE,bg = "transparent")
 
 ```
+
+
 
 #Nikos plot
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
@@ -270,7 +371,7 @@ nik<- data.frame(
 
 snik=subset(nik, nik$in61==TRUE)
 
-a=ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=in61))+
+ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=in61))+
   geom_hline(yintercept=0, colour="black")+
   geom_vline(xintercept=0, colour="black")+
   theme_bw()+
