@@ -22,6 +22,7 @@ library(scales)
 library(ggbiplot)
 library(devtools)
 library(NanoStringNorm)
+library(gtools)
 
 multiplot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
   require(grid)
@@ -398,3 +399,96 @@ ggsave(plot=a, height=7.5,width=15,dpi=200, device="png", filename=paste("nplot.
 
 ```
 
+#Variation due to Regeneration
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"&  sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y", "OR") ))
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+nmd <- as.data.frame(md/rowMeans(md))
+regonly <- t(subset(t(nmd), si$type == "OR"))
+nmd$regstdev <- apply(regonly, 1,sd)
+nmd <- subset(nmd, rownames(nmd)%in% gm$marker)
+nmd$marker <- rownames(nmd)
+nmd <- nmd[order(nmd$marker),]
+gm <- gm[order(gm$marker),]
+nmd$dir <- gm$dir[gm$dir != "housekeeping"]
+
+nmd$smarker <- substr(nmd$marker,1,2)
+nmd$smarker <- factor(nmd$smarker, levels=nmd$smarker[order(nmd$regstdev)])
+
+
+mnmd <- melt(nmd, id.vars=c("marker", "dir", "regstdev", "smarker"))
+mnmd$type <- "Y"
+mnmd$type[mnmd$variable %in% si$sample[si$type== "OR"]] <- "OR"
+mnmd$type[mnmd$variable %in% si$sample[si$type== "O"]] <- "O"
+
+
+ggplot(mnmd, aes(x= smarker, y=value, colour=type)) +
+  theme_bw()+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3" ))+ 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=6))
+#  geom_text(aes(label=variable), size=1)
+
+
+```
+
+#Nikos Plot 2
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- ctg1to9
+old <- t(subset(t(md), sampleinfo$type =="O" &  sampleinfo$sex == "F" & sampleinfo$qual =="ok" &sampleinfo$ctg %in% c(3,4,5,7)))
+
+young <- t(subset(t(md), sampleinfo$type =="Y" & sampleinfo$sex== "F" & sampleinfo$qual =="ok"&sampleinfo$ctg %in% c(3,4,5,7)))
+
+regen <- t(subset(t(md), sampleinfo$type =="OR" & sampleinfo$qual =="ok" &sampleinfo$ctg>2))
+
+oy <- cbind(old, young)
+
+t.result <- apply(oy, 1, function (x)
+t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oy)]))
+ovy.p_value <- unlist(lapply(t.result, function(x) x$p.value))
+
+
+oreg <- cbind(old, regen)
+
+t.result <- apply(oreg, 1, function (x)
+t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oreg)]))
+ovreg.p_value <- unlist(lapply(t.result, function(x) x$p.value))
+
+
+nmd <- md/rowMeans(cbind(young, old))
+
+nik<- data.frame(
+  fullname= rownames(md), 
+  sname = substr(rownames(md),1,2), 
+  YvOl2fc= foldchange2logratio(foldchange(rowMeans(young),            rowMeans(old))),
+  ROvOl2fc= foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old))),
+  in61 =rownames(md) %in% gm$marker, 
+  ovypval = ovy.p_value, ovrpval = ovreg.p_value)
+
+nik$ovysig <- nik$ovypval <0.05
+nik$ovrsig <- nik$ovrpval <0.1
+
+ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=ovrpval, shape=ovrsig))+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_minimal()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
+#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
+  geom_point( size=3)+
+  scale_shape_manual(values=c(21,23), labels=c(">0.1", "<0.1"), breaks=c(FALSE, TRUE) ,name="RO vs O p-value" )+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  coord_fixed(ratio=1)+
+scale_fill_gradient(low="red3", high="yellow")+
+  facet_wrap(~ovysig)
+
+#ggsave(plot=p, file="nplot2.pdf", width=16, height=8)
+
+```
