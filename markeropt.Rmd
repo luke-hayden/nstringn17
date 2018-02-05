@@ -1,7 +1,6 @@
 ---
-title: "NanoStringNov17"
+title: "Reliable rejuvenation signal?"
 author: "Luke Hayden"
-date: "24 November 2017"
 output: html_document
 ---
 
@@ -55,7 +54,7 @@ multiplot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
 
 ###Data Import
 
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 
 
 gm <- read.csv("gmark.csv")
@@ -281,7 +280,7 @@ ggplot(gmnmd, aes(x= sname, y=value, colour=age, label=variable)) +
 ```
 
 
-#Nikos plot
+
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 gnmd <- subset(nmd, nmd$p_value <0.05 & nmd$samedir == TRUE)
 
@@ -434,7 +433,7 @@ ggplot(mnmd, aes(x= smarker, y=value, colour=type)) +
 
 ```
 
-#Nikos Plot 2
+#Reliable rejuvenation?
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 md <- ctg1to9
@@ -500,9 +499,11 @@ scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=4, name="Std
 
 
 nik$good <- nik$ROvOl2fc/nik$YvOl2fc > 0.6 & nik$ovysig ==TRUE &nik$regsd <3
+nik$reju <- " neither"
+nik$reju[nik$ROvOl2fc/nik$YvOl2fc > 0.6 & nik$ovysig ==TRUE &nik$regsd <3] <- "rejuvenated"
+nik$reju[nik$ROvOl2fc/nik$YvOl2fc < -0.6 & nik$ovysig ==TRUE &nik$regsd <3] <- "aged"
 
-
-ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regsd,colour=good, shape=ovrsig))+
+ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regsd,colour=reju, shape=ovrsig))+
   geom_hline(yintercept=0, colour="black")+
   geom_vline(xintercept=0, colour="black")+
   theme_minimal()+
@@ -517,11 +518,11 @@ ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regsd,colour=good,
   geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
   theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
   coord_fixed(ratio=1)+
-scale_fill_gradient2(high="red2", mid="white", low="blue", midpoint=2.5, name="Standard deviation \n amongst regenerated")+
+scale_fill_gradient2(high="darkgoldenrod1", mid="white", low="blue", midpoint=2.5, name="Standard deviation \n amongst regenerated")+
   facet_wrap(~ovysig)+
-#  geom_text(size=1.7, aes(alpha=good))+
-  scale_colour_manual(values=c("white", "black"),labels=c("Rejuvenating \nmarkers", ""), breaks=c(TRUE, F) , name=NULL)+
-  scale_alpha_manual(values=c(0,1), guide=FALSE)
+  geom_text(size=1.7, aes(alpha=reju))+
+  scale_colour_manual( values=c("red2",   "black", "dark green"), name="Rejuvenation")+
+  scale_alpha_manual(values=c(1,0,1))
 
 
 
@@ -540,17 +541,20 @@ si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
 nmd <- as.data.frame(md/rowMeans(md))
 regonly <- t(subset(t(nmd), si$type == "OR"))
 nmd$regstdev <- apply(regonly, 1,sd)
-nmd <- subset(nmd, rownames(nmd)%in% gm$marker)
+
 nmd$marker <- rownames(nmd)
 nmd <- nmd[order(nmd$marker),]
-gm <- gm[order(gm$marker),]
-nmd$dir <- gm$dir[gm$dir != "housekeeping"]
+codeset <- codeset[order(codeset$shortname),]
+nmd$dir <- "upregulated with age"
+nmd$dir[codeset$log2FoldChange > 0] <- "downregulated with age" 
+
+
 
 nmd$smarker <- substr(nmd$marker,1,2)
 nmd$smarker <- factor(nmd$smarker, levels=nmd$smarker[order(nmd$regstdev)])
 nmd <- subset(nmd, nmd$marker %in% nik$fullname[nik$good ==T])
 
-mnmd <- melt(nmd, id.vars=c("marker", "dir", "regstdev", "smarker"))
+mnmd <- melt(nmd, id.vars=c("marker", "regstdev", "dir", "smarker"))
 mnmd$type <- "Y"
 mnmd$type[mnmd$variable %in% si$sample[si$type== "OR"]] <- "OR"
 mnmd$type[mnmd$variable %in% si$sample[si$type== "O"]] <- "O"
@@ -558,6 +562,8 @@ mnmd$type[mnmd$variable %in% si$sample[si$type== "O"]] <- "O"
 mcodeset <- subset(codeset, codeset$Customer_Identifier %in% nmd$marker)
 
 print(paste(mcodeset$shortname, ": " ,mcodeset$DrosoTopHit, sep=""))
+
+print(paste(mcodeset$shortname, ": " ,mcodeset$TopHit, sep=""))
 
 mnmd$topblast <- ""
 
@@ -593,7 +599,7 @@ umnmd <- subset(mnmd, !duplicated(mnmd$marker))
 
 
 
-mcodeset$smarkerdir <- paste(substr(mcodeset$dir,1,2), mnmd$smarker)
+#mcodeset$smarkerdir <- paste(substr(mcodeset$dir,1,2), mnmd$smarker)
   
   
 ggplot(mnmd, aes(x= value, fill=type)) +
@@ -610,3 +616,6 @@ ggplot(mnmd, aes(x= value, fill=type)) +
 
 
 ```
+
+
+

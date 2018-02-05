@@ -1,7 +1,6 @@
 ---
-title: "NanoStringNov17"
+title: "Normalisation"
 author: "Luke Hayden"
-date: "24 November 2017"
 output: html_document
 ---
 
@@ -56,7 +55,7 @@ multiplot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
 ###Data Import
 We will look at our whole dataset: 108 RNA samples from 3 separate periods. 
 
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 
 
 gm <- read.csv("gmark.csv")
