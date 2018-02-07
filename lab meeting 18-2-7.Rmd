@@ -1,40 +1,812 @@
 ---
-title: "Lab meeting 18-2-7"
+title: "Lab Meeting"
+author: "Luke Hayden"
+date: 7th Feb 2018
 output:
   beamer_presentation:
-    theme: "Malmoe"
+    theme: "Darmstadt"
     colortheme: "fly"
     fonttheme: "default"
-date: February 7 2018
-
-
+slide_level: 3
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE)
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+library(ggplot2)
+library(rmarkdown)
+library(gplots)
+library(RColorBrewer)
+library(reshape2)
+library(scales)
+library(ggbiplot)
+library(devtools)
+library(NanoStringNorm)
+library(gtools)
+
+load(file="nov17main_data.rdata")
+gm <- read.csv("gmark.csv")
+
+
+multiplot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
+  require(grid)
+  
+  plots <- c(list(...), plotlist)
+  
+  numPlots = length(plots)
+  
+  if (is.null(layout)) {
+    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
+                     ncol = cols, nrow = ceiling(numPlots/cols))
+  }
+  
+  if (numPlots == 1) {
+    print(plots[[1]])
+    
+  } else {
+    grid.newpage()
+    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
+    
+    for (i in 1:numPlots) {
+      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
+      
+      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
+                                      layout.pos.col = matchidx$col))
+    }
+  }
+}
+
 ```
 
-## R Markdown
 
-This is an R Markdown presentation. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document.
+#Background
+##Project
 
-## Slide with Bullets
+Examine the effect of regeneration on the molecular age profile of *Parhyale* limbs
 
-- Bullet 1
-- Bullet 2
-- Bullet 3
+##Designing codeset
 
-## Slide with R Output
+*Nanostring as method to quantify gene expression
 
-```{r cars, echo = TRUE}
-summary(cars)
+*200 genes in codeset
+
+-195 genes chosen on the basis of differential expression analysis 
+
+-5 control genes: do not vary in expression between conditions
+
+
+#Initial test of aging separation
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+log <- sampleinfo$sex =="F" & sampleinfo$ctg %in% c(3,4) & sampleinfo$qual == "ok" & sampleinfo$reg == "" & sampleinfo$age != "N"
+
+
+bcmin <- ctg1to9[,log== TRUE]
+bcmin.groups <- subset(sampleinfo$type, log==TRUE)
+
+
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle("PCA of O vs Y (females): all 195 markers")+
+    theme_bw() +
+  scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
 ```
 
-## Slide with Plot
 
-```{r pressure}
-plot(pressure)
+
+#Using subset of chosen markers
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+log <- sampleinfo$sex =="F" & sampleinfo$ctg %in% c(3,4) & sampleinfo$qual == "ok" & sampleinfo$reg == "" & sampleinfo$age != "N"
+
+
+bcmin <- ctg1to9[,log== TRUE]
+bcmin.groups <- subset(sampleinfo$type, log==TRUE)
+bcmin <- subset(bcmin, rownames(bcmin) %in% gm$marker)
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle("PCA of O vs Y (females): 61 chosen markers")+
+    theme_bw() +
+  scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+
+#multiplot(a,b, cols=2)
 ```
 
+
+
+#New dataset
+Add new female samples
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+log <- sampleinfo$sex =="F" & sampleinfo$ctg %in% c(3,4,5,7) & sampleinfo$qual == "ok" & sampleinfo$reg == "" & sampleinfo$age != "N"
+
+
+bcmin <- ctg1to9[,log== TRUE]
+bcmin.groups <- subset(sampleinfo$type, log==TRUE)
+
+bcmin <- subset(bcmin, rownames(bcmin) %in% gm$marker)
+
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle("PCA of O vs Y (females): 61 markers")+
+    theme_bw() +
+  scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+```
+
+
+#Variation amongst markers
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+an <- ctg1to9
+
+log <- sampleinfo$sex =="F" &  sampleinfo$qual == "ok" & sampleinfo$reg != "R"& sampleinfo$age != "N"& sampleinfo$ctg %in% c("3","4","5","6","7","8","9")
+anf <- an[,log==TRUE]
+
+sif <- subset(sampleinfo, log)
+
+o <- anf[,sif$age == "O" & sif$sex == "F"]
+y <- anf[,sif$age == "Y" & sif$sex == "F"]
+
+yo <- as.data.frame(cbind(y,o))
+
+anf <- as.data.frame(anf/rowMeans(anf))
+t.result <- apply(yo, 1, function (x) t.test(x[1:ncol(y)],x[ncol(y)+1:ncol(yo)]))
+anf$p_value <- unlist(lapply(t.result, function(x) x$p.value))
+anf$t_stat <- unlist(lapply(t.result, function(x) x$statistic))
+anf$marker <- rownames(anf)
+anf$isg <- "not in chosen 61"
+anf$isg[anf$marker %in% gm$marker] <- "chosen markers"
+
+
+
+#colnames(anf) <- paste( sif$type, colnames(anf))
+#anf <- rbind(anf, t(sif))
+manf <- melt(anf, id.vars=c("p_value", "marker", "t_stat", "isg"))
+
+manf$type <- "Old"
+manf$type[manf$variable %in% sif$sample[sif$age == "Y"]] <- "Young"
+manf$mk <- substr(manf$marker, 1,2)
+manf$dir <- "upregulated with age"
+manf$dir[manf$marker %in% codeset$Customer_Identifier[codeset$log2FoldChange >0]] <- "downregulated with age"
+manf$dm <- paste(substr(manf$dir, 1,1), manf$mk)
+
+ggplot(manf, aes(x=mk, y=value, colour=type, fill=dir)) +
+  theme_bw()+
+  geom_boxplot(outlier.alpha = 0)+
+  scale_y_continuous(trans='log2', breaks=c(0,0.062,0.125,0.25,0.5,1,2,4))+
+  geom_hline(yintercept=1, colour = "black", linetype=2) +
+  scale_fill_manual(values=c("white", "dark grey"))  +
+  scale_color_manual(values=c("cornflower blue", "red3")) +
+  theme(axis.text.x = element_text(angle = 60, hjust =0.5, size=7)) +
+  facet_wrap(isg~dir, ncol=1, scales="free_x", strip.position="left") +
+  xlab("Marker") +
+  ylab("Expression level (Normalised to mean)")+
+  ggtitle("Old vs Young in females, both chosen and other markers") +
+  theme(strip.text = element_text(size=6))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+```
+
+#Is this due to normalisation?
+
+How does normalisation affect the PCA?
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+norm <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
+intonly <- t(subset(t(ctg1to9intonly), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
+un <-t(subset(t(ctg1to9un), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
+
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(norm))
+
+bcmin <- norm
+bcmin.groups <- si$type
+
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+a=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
+  theme_bw() +
+  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
+  ggtitle(paste("PCA of O vs Y: full normalisation (195 markers) " ))+ 
+  scale_fill_manual(values=c("cornflower blue", "red3"))+
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(axis.title=element_text(size=6))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  theme(legend.position = 'none')
+
+  
+bcmin <- intonly
+bcmin.groups <- si$type
+
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+b=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
+  theme_bw() +
+  scale_fill_manual(values=c("cornflower blue", "red3"))+
+  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
+  ggtitle(paste("PCA of O vs Y: normalisation by internal controls only (195 markers)" ))+ 
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(axis.title=element_text(size=6))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  theme(legend.position = 'none')
+
+bcmin <- un
+bcmin.groups <- si$type
+
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+c=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
+  theme_bw() +
+  scale_fill_manual(values=c("cornflower blue", "red3"))+
+  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
+  ggtitle(paste("PCA of O vs Y: no normalisation (195 markers)" ))+ 
+  scale_colour_manual(values=c("cornflower blue", "red3"))+
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(axis.title=element_text(size=6))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  theme(legend.position = 'none')
+
+multiplot(c,b,a , cols=2)
+````
+
+#How do the housekeeping genes behave?
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+norm <- hk.norm[,4:111]
+
+norm <- t(subset(t(norm), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
+
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(norm))
+
+bcmin <- norm
+bcmin.groups <- si$type
+
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+b=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
+  theme_bw() +
+  scale_fill_manual(values=c("cornflower blue", "red3"))+
+  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
+  ggtitle(paste("PCA of old vs young using housekeeping genes values (normalised)", sep= "" ))+ 
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(axis.title=element_text(size=6))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  theme(legend.position = 'none')
+
+
+raw <- hk.raw[,4:111]
+
+raw<- t(subset(t(raw), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
+
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(raw))
+
+bcmin <- raw
+bcmin.groups <- si$type
+
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+a=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
+  theme_bw() +
+  scale_fill_manual(values=c("cornflower blue", "red3"))+
+  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
+  ggtitle(paste("PCA of old vs young using housekeeping genes values (raw)", sep= "" ))+ 
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(axis.title=element_text(size=6))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  theme(legend.position = 'none')
+
+
+multiplot(a,b, cols=2)
+
+```
+
+
+
+#Further optimisation of marker set
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+old <- t(subset(t(md), si$age == "O"))
+young <- t(subset(t(md), si$age == "Y"))
+regen <- t(subset(t(ctg1to9), sampleinfo$type == "OR" & sampleinfo$qual == "ok"))
+
+nmd <- as.data.frame(md/rowMeans(md))
+nmd$sname <- substr(rownames(md), 1,2)
+nmd <- nmd[order(nmd$sname),]
+nmd$up <- codeset$log2FoldChange > 0
+nmd$YvOl2fc <- foldchange2logratio(foldchange(rowMeans(young), rowMeans(old)))
+nmd$ROvOl2fc <- foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old)))
+
+oy <- cbind(old, young)
+t.result <- apply(oy, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oy)]))
+nmd$p_value <- unlist(lapply(t.result, function(x) x$p.value))
+
+
+nmd$sname <- factor(nmd$sname, levels=nmd$sname[order(nmd$p_value)])
+
+nmd$dir <- "downregulated with age"
+nmd$dir[nmd$up == FALSE] <- "upregulated with age"
+
+nmd$sig <- nmd$p_value <0.05
+nmd$sp <- round(nmd$p_value, 2)
+nmd$sigstar <- ""
+nmd$sigstar[nmd$p_value <0.05] <- "*"
+
+nmd <- nmd[order(nmd$sname),]
+codeset <- codeset[codeset$Customer_Identifier,]
+
+
+nmd$samedir <- sign(codeset$log2FoldChange) == sign(nmd$YvOl2fc) 
+
+
+ngm <- rownames(nmd)[nmd$p_value <0.05 & nmd$samedir == TRUE]
+alldir <- rep("downregulated with age",195)
+alldir[sign(codeset$log2FoldChange) <0] <- "upregulated with age"
+
+minf <- data.frame(isgood= nmd$p_value <0.05 & nmd$samedir == TRUE, alldir, name=codeset$Customer_Identifier)
+
+
+mnmd <- melt(nmd, id.vars=c("p_value", "sname", "up", "dir", "sp", "sig", "sigstar", "samedir", "YvOl2fc", "ROvOl2fc"))
+mnmd$age <- "old"
+mnmd$age[mnmd$variable %in% colnames(young)] <- "young"
+mnmd$ing <- ""
+mnmd$ing[mnmd$variable %in% gm$marker] <- "."
+
+
+ggplot(mnmd, aes(x= sname, y=value, colour=age, fill=age)) +
+  theme_bw()+
+#  geom_point(size=3, shape=95)+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+ geom_violin(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "red3"))+ 
+  scale_fill_manual(values=c("cornflower blue", "red3")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  xlab("Marker")+
+  ylab("Expression (normalised to mean)")+
+  ggtitle("All markers")
+
+```
+
+#Chosen markers
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+#  geom_text(colour="black", angle=90, inherit.aes=FALSE, data=nmd, aes(x=sname, y=0, label=sp, alpha=sig))
+
+
+gmnmd <- subset(mnmd, (mnmd$p_value <0.05 & mnmd$samedir == TRUE))
+gmnmd$sname <- as.character(gmnmd$sname)
+
+
+ggplot(gmnmd, aes(x= sname, y=value, colour=age, label=variable, fill=age)) +
+  theme_bw()+
+  geom_violin()+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+  scale_colour_manual(values=c("cornflower blue", "red3")) +
+  scale_fill_manual(values=c("cornflower blue", "red3")) +
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=6))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  xlab("Marker")+
+  ylab("Expression (normalised to mean)")+
+  ggtitle(paste("New optimised set:", length(ngm), "markers"))
+```
+
+#Effect of regeneration
+##On PCA
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+
+log <- sampleinfo$sex =="F" & sampleinfo$ctg %in% c(3,4,5,7) & sampleinfo$qual == "ok" & sampleinfo$reg == ""& sampleinfo$age != "N"
+
+
+bcmin <- ctg1to9[,log== TRUE]
+bcmin.groups <- subset(sampleinfo$type, log==TRUE)
+bcmin <- subset(bcmin, rownames(bcmin) %in% gm$marker)
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+ctg3to9<- t(subset(t(ctg1to9), sampleinfo$ctg > 2))
+
+rg <-ctg3to9[,c(5,6,17,18,37:42,44:48,61:69, 79:84)]
+rg <- subset(rg, rownames(rg) %in% gm$marker)
+rg.groups <- sampleinfo$type[sampleinfo$sample %in% colnames(rg)]
+
+rg.sc <- scale(t(rg), center= bc.pca$center)
+rg.pred <- rg.sc %*% bc.pca$rotation 
+
+
+rgd.pca <- bc.pca
+rgd.pca$x <- rbind(bc.pca$x, rg.pred)
+                   
+                   
+rgd.groups <- append(bcmin.groups, rg.groups)                
+
+ggbiplot(rgd.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(rgd.pca$x), groups=rgd.groups, varname.abbrev = TRUE)+   theme_bw() +theme(legend.direction = 'horizontal', legend.position = 'top')+ggtitle("PCA Old vs Young + regenerated projected")+ scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+
+
+
+````
+
+#Effect of regeneration
+##per marker
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+an <- ctg1to9
+an <- subset(an, rownames(an) %in% gm$marker)
+log <- sampleinfo$sex =="F" &  sampleinfo$qual == "ok" & sampleinfo$type != "YR"& sampleinfo$age != "N"& sampleinfo$ctg %in% c(3,4,5,6,7,8,9) 
+anf <- an[,log==TRUE]
+anf <- anf/rowMeans(anf)
+
+sif <- subset(sampleinfo, log)
+colnames(anf) <- paste( sif$type, colnames(anf))
+#anf <- rbind(anf, t(sif))
+manf <- melt(anf)
+
+manf$type <- substr(manf$Var2,1,2)
+manf$mk <- substr(manf$Var1, 1,2)
+
+manf$dir <- "upregulated with age"
+manf$dir[manf$Var1 %in% codeset$Customer_Identifier[codeset$log2FoldChange>0]]<- "downregulated with age"
+
+
+manf$dm <- paste(substr(manf$dir, 1,1), manf$mk)
+
+
+
+ggplot(manf, aes(x=mk, y=value, colour=type, fill=type)) +
+  theme_bw() +
+  scale_y_continuous(trans='log2', breaks=c(0,0.25,0.5,1,2,4))+
+  geom_hline(yintercept=1, colour = "black", linetype=2) +
+  scale_fill_manual(values=c("cornflower blue", "forest green",  "red3")) +
+  scale_color_manual(values=c("cornflower blue", "forest green",  "red3")) +
+  theme(axis.text.x = element_text(angle = 60, hjust =0.5, size=7)) +
+  facet_grid(~dir, space="free",scales="free" )+
+  ylab("Expression level (Normalised to mean)") +
+  xlab("Marker") +
+  ggtitle("")+
+  geom_violin()+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+
+
+```
+
+
+#Find rejuvenating markers
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- ctg1to9
+old <- t(subset(t(md), sampleinfo$type =="O" &  sampleinfo$sex == "F" & sampleinfo$qual =="ok" &sampleinfo$ctg %in% c(3,4,5,7)))
+
+young <- t(subset(t(md), sampleinfo$type =="Y" & sampleinfo$sex== "F" & sampleinfo$qual =="ok"&sampleinfo$ctg %in% c(3,4,5,7)))
+
+regen <- t(subset(t(md), sampleinfo$type =="OR" & sampleinfo$qual =="ok" &sampleinfo$ctg>2))
+
+nmd <- md/rowMeans(cbind(young, old))
+
+nik<- data.frame(
+  fullname= rownames(md), 
+  sname = substr(rownames(md),1,2), 
+  YvOl2fc= foldchange2logratio(foldchange(rowMeans(young),            rowMeans(old))),
+  ROvOl2fc= foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old))),
+  ing =rownames(md) %in% minf$name[minf$isgood==T])
+
+snik=subset(nik, nik$ing==TRUE)
+
+ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=ing))+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+ scale_colour_manual(values= c("forest green", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
+#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
+  geom_point( size=8, alpha=0.4)+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  geom_text()+
+  coord_fixed(ratio=1)+
+  facet_wrap(~ing)+
+  theme(strip.text=element_blank())
+  
+
+```
+
+
+#Reliable rejuvenation?
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- ctg1to9
+old <- t(subset(t(md), sampleinfo$type =="O" &  sampleinfo$sex == "F" & sampleinfo$qual =="ok" &sampleinfo$ctg %in% c(3,4,5,7)))
+
+young <- t(subset(t(md), sampleinfo$type =="Y" & sampleinfo$sex== "F" & sampleinfo$qual =="ok"&sampleinfo$ctg %in% c(3,4,5,7)))
+
+regen <- t(subset(t(md), sampleinfo$type =="OR" & sampleinfo$qual =="ok" &sampleinfo$ctg>2))
+
+oy <- cbind(old, young)
+
+t.result <- apply(oy, 1, function (x)
+t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oy)]))
+ovy.p_value <- unlist(lapply(t.result, function(x) x$p.value))
+
+
+oreg <- cbind(old, regen)
+
+t.result <- apply(oreg, 1, function (x)
+t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oreg)]))
+ovreg.p_value <- unlist(lapply(t.result, function(x) x$p.value))
+
+nold <- old/rowMeans(md)
+nyoung <- young/rowMeans(md)
+nregen <- regen/rowMeans(md)
+
+nmd <- md/rowMeans(cbind(young, old))
+
+
+
+nik<- data.frame(
+  fullname= rownames(md), 
+  sname = substr(rownames(md),1,2), 
+  YvOl2fc= foldchange2logratio(foldchange(rowMeans(young),            rowMeans(old))),
+  ROvOl2fc= foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old))),
+  in61 =rownames(md) %in% gm$marker, 
+  ovypval = ovy.p_value, 
+  ovrpval = ovreg.p_value,
+  oldsd=  apply(nold, 1,sd),
+  youngsd = apply(nyoung, 1,sd),
+  regsd = apply(nregen, 1,sd))
+
+nik$ovysig <- nik$ovypval <0.05
+nik$ovrsig <- nik$ovrpval <0.1
+
+ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regsd, shape=ovrsig))+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
+#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
+  geom_point( size=3)+
+  scale_shape_manual(values=c(21,23), labels=c(">0.1", "<0.1"), breaks=c(FALSE, TRUE) ,name="RO vs O p-value" )+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  coord_fixed(ratio=1)+
+scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=4, name="Stdev (regen)")+
+  facet_wrap(~ovysig)
+
+
+nik$good <- nik$ROvOl2fc/nik$YvOl2fc > 0.6 & nik$ovysig ==TRUE &nik$regsd <3
+nik$reju <- " neither"
+nik$reju[nik$ROvOl2fc/nik$YvOl2fc > 0.6 & nik$ovysig ==TRUE &nik$regsd <3] <- "rejuvenated"
+nik$reju[nik$ROvOl2fc/nik$YvOl2fc < -0.6 & nik$ovysig ==TRUE &nik$regsd <3] <- "aged"
+```
+
+#Choose most reliable
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+ggplot(data=nik, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regsd,colour=reju, shape=ovrsig))+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
+#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
+  geom_point( size=3.5)+
+  scale_shape_manual(values=c(21,23), labels=c(">0.1", "<0.1"), breaks=c(FALSE, TRUE) ,name="Regen vs Old \np-value" )+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
+  coord_fixed(ratio=1)+
+scale_fill_gradient2(high="darkgoldenrod1", mid="white", low="blue", midpoint=2.5, name="Standard deviation \n amongst regenerated")+
+  facet_wrap(~ovysig)+
+  geom_text(size=1.7, aes(alpha=reju))+
+  scale_colour_manual( values=c("red2",   "black", "dark green"), name="Rejuvenation")+
+  scale_alpha_manual(values=c(1,0,1))
+
+
+
+
+```
+
+
+#Rejuvenating Markers
+Only those with:
+Ratio of YvO l2fc / RO vs O l2fc > 0.6
+Stdev between regenerated <3
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"&  sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y", "OR") ))
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+nmd <- as.data.frame(md/rowMeans(md))
+regonly <- t(subset(t(nmd), si$type == "OR"))
+nmd$regstdev <- apply(regonly, 1,sd)
+
+nmd$marker <- rownames(nmd)
+nmd <- nmd[order(nmd$marker),]
+codeset <- codeset[order(codeset$shortname),]
+nmd$dir <- "upregulated with age"
+nmd$dir[codeset$log2FoldChange > 0] <- "downregulated with age" 
+
+
+
+nmd$smarker <- substr(nmd$marker,1,2)
+nmd$smarker <- factor(nmd$smarker, levels=nmd$smarker[order(nmd$regstdev)])
+nmd <- subset(nmd, nmd$marker %in% nik$fullname[nik$good ==T])
+
+mnmd <- melt(nmd, id.vars=c("marker", "regstdev", "dir", "smarker"))
+mnmd$type <- "Y"
+mnmd$type[mnmd$variable %in% si$sample[si$type== "OR"]] <- "OR"
+mnmd$type[mnmd$variable %in% si$sample[si$type== "O"]] <- "O"
+
+mcodeset <- subset(codeset, codeset$Customer_Identifier %in% nmd$marker)
+
+#print(paste(mcodeset$shortname, ": " ,mcodeset$DrosoTopHit, sep=""))
+
+print(paste(mcodeset$shortname[1:10], ": " ,mcodeset$TopHit[1:10], sep=""))
+
+mnmd$topblast <- ""
+
+for (i in 1:length(codeset$baseMean)){
+  x = mnmd$marker == codeset$Customer_Identifier[i]w
+  mnmd$topblast[x] <- as.character(codeset$TopHit[i])
+  mnmd$dtopblast[x] <- as.character(codeset$DrosoTopHit[i])
+}
+
+
+
+```
+
+
+#Rejuvenating Markers
+Only those with:
+Ratio of YvO l2fc / RO vs O l2fc > 0.6
+Stdev between regenerated <3
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+print(paste(mcodeset$shortname[11: length(mcodeset$baseMean)], ": " ,mcodeset$TopHit[11: length(mcodeset$baseMean)], sep=""))
+```
+#Rejuvenating Markers
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+ggplot(mnmd, aes(x= smarker, y=value, fill=type)) +
+  theme_bw()+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+#  stat_summary()+
+  geom_boxplot(outlier.shape=NA)+
+#  geom_point(shape=21)+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3" ))+ 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+
+```
+
+
+
+#Extra-aged Markers
+Only those with:
+Ratio of YvO l2fc / RO vs O l2fc < -0.6
+Stdev between regenerated <3
+ 
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"&  sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y", "OR") ))
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+nmd <- as.data.frame(md/rowMeans(md))
+regonly <- t(subset(t(nmd), si$type == "OR"))
+nmd$regstdev <- apply(regonly, 1,sd)
+
+nmd$marker <- rownames(nmd)
+nmd <- nmd[order(nmd$marker),]
+codeset <- codeset[order(codeset$shortname),]
+nmd$dir <- "upregulated with age"
+nmd$dir[codeset$log2FoldChange > 0] <- "downregulated with age" 
+
+
+
+nmd$smarker <- substr(nmd$marker,1,2)
+nmd$smarker <- factor(nmd$smarker, levels=nmd$smarker[order(nmd$regstdev)])
+nmd <- subset(nmd, nmd$marker %in% nik$fullname[nik$reju =="aged"])
+
+mnmd <- melt(nmd, id.vars=c("marker", "regstdev", "dir", "smarker"))
+mnmd$type <- "Y"
+mnmd$type[mnmd$variable %in% si$sample[si$type== "OR"]] <- "OR"
+mnmd$type[mnmd$variable %in% si$sample[si$type== "O"]] <- "O"
+
+mcodeset <- subset(codeset, codeset$Customer_Identifier %in% nmd$marker)
+
+#print(paste(mcodeset$shortname, ": " ,mcodeset$DrosoTopHit, sep=""))
+
+print(paste(mcodeset$shortname[1:10], ": " ,mcodeset$TopHit[1:10], sep=""))
+
+mnmd$topblast <- ""
+
+for (i in 1:length(codeset$baseMean)){
+  x = mnmd$marker == codeset$Customer_Identifier[i]
+  mnmd$topblast[x] <- as.character(codeset$TopHit[i])
+  mnmd$dtopblast[x] <- as.character(codeset$DrosoTopHit[i])
+}
+
+
+
+```
+#Extra-aged Markers
+Only those with:
+Ratio of YvO l2fc / RO vs O l2fc < -0.6
+Stdev between regenerated <3
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+print(paste(mcodeset$shortname[11: length(mcodeset$baseMean)], ": " ,mcodeset$TopHit[11: length(mcodeset$baseMean)], sep=""))
+```
+
+#Extra-aged Markers
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+ggplot(mnmd, aes(x= smarker, y=value, fill=type)) +
+  theme_bw()+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+#  stat_summary()+
+  geom_boxplot(outlier.shape=NA)+
+#  geom_point(shape=21)+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3" ))+ 
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+
+```

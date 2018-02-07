@@ -7,54 +7,18 @@ output: html_document
 ##Setup
 ###Packages
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-#source("https://bioconductor.org/biocLite.R")
-#biocLite("DESeq2")
-#source("https://bioconductor.org/biocLite.R")
-#biocLite("DESeq2")
 
-library(ggplot2)
+
 library(rmarkdown)
-library(gplots)
-library(RColorBrewer)
-library(reshape2)
-library(scales)
-library(ggbiplot)
-library(devtools)
 library(NanoStringNorm)
-library(gtools)
 
-multiplot <- function(..., plotlist = NULL, file, cols = 1, layout = NULL) {
-  require(grid)
-  
-  plots <- c(list(...), plotlist)
-  
-  numPlots = length(plots)
-  
-  if (is.null(layout)) {
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                     ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-  
-  if (numPlots == 1) {
-    print(plots[[1]])
-    
-  } else {
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-    
-    for (i in 1:numPlots) {
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-      
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
+
 ```
 
 ###Data Import
 We will look at our whole dataset: 108 RNA samples from 3 separate periods. 
 
+###Raw
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 
 
@@ -91,11 +55,7 @@ ct9.raw <- read.markup.RCC()
 
 ````
 
-###Normalisation
-3 ways of normalising data possible:
--none (raw counts)
--by internal controls 
--by internal controls and housekeeping genes
+###Normalised fully
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 codeset <- read.table("CodeSet.txt")
@@ -121,6 +81,7 @@ ctg9.norm <- NanoStringNorm(x = ct9.raw, anno = NA, CodeCount ='sum', Background
 
 ````
 
+#Internal controls only
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 
 ctg5and6.intonly <- NanoStringNorm(x = ct5and6.raw, anno = NA, CodeCount ='sum', Background ="mean",OtherNorm = "none", round.values = FALSE, take.log = FALSE,return.matrix.of.endogenous.probes = TRUE);
@@ -142,6 +103,8 @@ ctg1to9intonly <- cbind(ctg1and2.intonly,ctg3and4.intonly, ctg5and6hi.intonly, c
 
 
 ````
+
+
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 
 ctg5and6.unnorm <- NanoStringNorm(x = ct5and6.raw, anno = NA, CodeCount ='none', Background ="none",OtherNorm = "none", round.values = FALSE, take.log = FALSE,return.matrix.of.endogenous.probes = TRUE);
@@ -163,7 +126,7 @@ ctg1to9un <- cbind(ctg1and2.unnorm,ctg3and4.unnorm, ctg5and6hi.unnorm, ctg7and8h
 
 
 ````
-
+#Column data
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 
 
@@ -232,227 +195,8 @@ sampleinfo$qual[c(25 , 31 , 32 , 49,  54 , 67  ,76,  90, 101, 104, 107)] <- "bad
 
 ```
 
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-norm <- melt(ctg1to9)
-intonly <- melt(ctg1to9intonly)
-un <- melt(ctg1to9un)
 
-normcomp <- cbind(norm, un$value, intonly$value)
-colnames(normcomp) <- c("marker", "sample", "normval", "unval", "intonlyval")
-
-p=ggplot(normcomp, aes(x=intonlyval, y=normval, colour=sample))+
-  geom_point()+
-  stat_smooth(model="lm")+
-  scale_y_log10()+
-  scale_x_log10()+
-  theme(legend.position = "none")
-
-```
-
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-norm <- melt(ctg1to9[,1:6])
-intonly <- melt(ctg1to9intonly[,1:6])
-un <- melt(ctg1to9un[,1:6])
-
-normcomp <- cbind(norm, un$value, intonly$value)
-colnames(normcomp) <- c("marker", "sample", "normval", "unval", "intonlyval")
-mnormcomp <- melt(normcomp, id.vars=c("marker", "sample"))
-
-ggplot(mnormcomp, aes(x=sample, y=value, colour=variable))+
-  geom_point(position=position_dodge(width=0.2))+
-  scale_y_log10()
-  scale_x_log10()
-  theme(legend.position = "none")
-
-```
-#Does normalisation differentially affect old vs young?
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-norm <- melt(t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" )))
-intonly <- melt(t(subset(t(ctg1to9intonly), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" )))
-un <-melt(t(subset(t(ctg1to9un), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" )))
-
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(ctg1to9))
-
-normcomp <- cbind(norm, un$value, intonly$value)
-colnames(normcomp) <- c("marker", "sample", "normval", "unval", "intonlyval")
-normcomp$age <- "old"
-normcomp$age[normcomp$sample %in% si$sample[si$age=="Y"]] <- "young" 
-mnormcomp <- melt(normcomp, id.vars=c("marker", "sample", "age"))
-
-ggplot(mnormcomp, aes(x=sample, y=value, colour=variable))+
-  geom_point(position=position_dodge(width=0.4), size=1.5)+
-  scale_y_log10()+
-  scale_fill_manual(values=c("white", "black"))+
-  facet_wrap(~age, scales="free")+
-  scale_colour_manual(values=c("brown", "forest green", "orange"))+
-  theme_bw()+
-  theme(axis.text.x = element_text(angle = 60, hjust =1, size=7))+
-  xlab("Sample")+
-  ylab("Expression level (counts)")
-
-```
-
-Does not seem to be the case. 
-
-
-#How does normalisation affect the PCA?
-
-###Using all 195 markers
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-norm <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-intonly <- t(subset(t(ctg1to9intonly), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-un <-t(subset(t(ctg1to9un), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(norm))
-
-bcmin <- norm
-bcmin.groups <- si$type
-
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-a=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
-  theme_bw() +
-  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
-  ggtitle(paste("PCA of O vs Y: full normalisation (195 markers) " ))+ 
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
-  theme(plot.title=element_text(size=8,face="bold"))+
-  theme(axis.title=element_text(size=6))
-
-  
-bcmin <- intonly
-bcmin.groups <- si$type
-
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-b=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
-  theme_bw() +
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
-  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
-  ggtitle(paste("PCA of O vs Y: normalisation by internal controls only (195 markers)" ))+ 
-  theme(plot.title=element_text(size=8,face="bold"))+
-  theme(axis.title=element_text(size=6))
-
-bcmin <- un
-bcmin.groups <- si$type
-
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-c=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
-  theme_bw() +
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
-  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
-  ggtitle(paste("PCA of O vs Y: no normalisation (195 markers)" ))+ 
-  scale_colour_manual(values=c("cornflower blue", "red3"))+
-  theme(plot.title=element_text(size=8,face="bold"))+
-  theme(axis.title=element_text(size=6))
-
-multiplot(c,b,a )
-````
-
-This looks good. Note how the unnormalised samples have all the eigenvectors pulling in different directions, then become nicely distributed after normalisation. 
-
-##Using reduced marker set:
-
-
-Here we have very stringent conditions, cutting our list of markers down to just:
-
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
-old <- t(subset(t(md), si$age == "O"))
-young <- t(subset(t(md), si$age == "Y"))
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(norm))
-
-norm <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-intonly <- t(subset(t(ctg1to9intonly), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-un <-t(subset(t(ctg1to9un), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-
-oy <- cbind(old, young)
-t.result <- apply(oy, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oy)]))
-p_value <- unlist(lapply(t.result, function(x) x$p.value))
-
-md <- md[order(rownames(md)),]
-codeset <- codeset[order(codeset$Customer_Identifier),]
-
-YvOl2fc <- foldchange2logratio(foldchange(rowMeans(young), rowMeans(old)))
-samedir <- sign(codeset$log2FoldChange) == sign(YvOl2fc) 
-
-
-
-bcmin <- norm
-bcmin.groups <- si$type
-bcmin <- subset(bcmin, p_value <0.05 & samedir & rownames(bcmin) %in% gm$marker)
-
-print(nrow(bcmin))
-```
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-a=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
-  theme_bw() +
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
-  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
-  ggtitle(paste("PCA of O vs Y: full normalisation (", nrow(bcmin), " markers)", sep= "" ))+ 
-  theme(plot.title=element_text(size=8,face="bold"))+
-  theme(axis.title=element_text(size=6))
-
-
-bcmin <- intonly
-bcmin.groups <- si$type
-
-bcmin <- subset(bcmin, p_value <0.05 & samedir & rownames(bcmin) %in% gm$marker)
-
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-b=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
-  theme_bw() +
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
-  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
-  ggtitle(paste("PCA of O vs Y: normalisation by internal controls only (", nrow(bcmin), " markers)", sep= "" ))+ 
-  theme(plot.title=element_text(size=8,face="bold"))+
-  theme(axis.title=element_text(size=6))
-
-bcmin <- un
-bcmin.groups <- si$type
-
-bcmin <- subset(bcmin, p_value <0.05 & samedir & rownames(bcmin) %in% gm$marker)
-
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-c=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
-  theme_bw() +
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
-  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
-  ggtitle(paste("PCA of O vs Y: no normalisation (", nrow(bcmin), " markers)", sep= "" ))+ 
-  theme(plot.title=element_text(size=8,face="bold"))+
-  theme(axis.title=element_text(size=6))
-
-multiplot(c,b,a )
-```
-
-#How do the housekeeping genes behave?
+#Housekeeping genes 
 
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
@@ -502,56 +246,10 @@ hk.norm <- subset(ctg1to9.whk.norm, ctg1to9.whk.norm[,1] == "Housekeeping")
 
 hk.raw <- subset(ctg1to9.whk.raw, ctg1to9.whk.raw[,1] == "Housekeeping")
 
-
+```
+##Saving
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
+save(sampleinfo,ctg1to9,ctg1to9intonly,ctg1to9un, codeset, hk.norm, hk.raw, file="nov17main_data.rdata")
 
 ```
 
-
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-norm <- hk.norm[,4:111]
-
-norm <- t(subset(t(norm), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(norm))
-
-bcmin <- norm
-bcmin.groups <- si$type
-
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
-  theme_bw() +
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
-  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
-  ggtitle(paste("PCA of old vs young using housekeeping genes values (normalised)", sep= "" ))+ 
-  theme(plot.title=element_text(size=8,face="bold"))+
-  theme(axis.title=element_text(size=6))
-
-
-raw <- hk.raw[,4:111]
-
-raw<- t(subset(t(raw), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(raw))
-
-bcmin <- raw
-bcmin.groups <- si$type
-
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=TRUE,varname.size=1,varname.abbrev = TRUE)+
-  theme_bw() +
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
-  geom_point(aes(fill=bcmin.groups), size=3, shape=21)+
-  ggtitle(paste("PCA of old vs young using housekeeping genes values (raw)", sep= "" ))+ 
-  theme(plot.title=element_text(size=8,face="bold"))+
-  theme(axis.title=element_text(size=6))
-
-```

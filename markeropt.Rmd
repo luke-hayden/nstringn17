@@ -200,6 +200,13 @@ sampleinfo$qual[c(25 , 31 , 32 , 49,  54 , 67  ,76,  90, 101, 104, 107)] <- "bad
 #print("Samples as follows (all experiments)")
 #print(paste("males: " sum()))
 
+save(sampleinfo,ctg1to9,ctg1to9intonly,ctg1to9un, codeset, hk.norm, hk.raw, file="nov17.rdata")
+save(ctg1to9, file="ctg1to9.rdata")
+save(ctg1to9, file="ctg1to9intonly.rdata")
+save(ctg1to9un, file="ctg1to9un.rdata")
+save(codeset, file="codeset.rdata")
+
+
 ```
 
 

@@ -16,36 +16,29 @@ Goals:
 All analysis was performed in RStudio Version 1.0.136, running R version 3.x. 
 Packages needed are:
 
-ggplot2
-rmarkdown
-gplots
-RColorBrewer
-reshape2
-scales
-ggbiplot
-devtools
-NanoStringNorm
-gtools
-knitr
+library(ggplot2)
+library(rmarkdown)
+library(gplots)
+library(RColorBrewer)
+library(reshape2)
+library(scales)
+library(ggbiplot)
+library(devtools)
+library(NanoStringNorm)
+library(gtools)
 
 Exact prerequisites depend on script in question. 
 
 
 ### Structure
 The following functions are carried out by the following scripts:
-All analyses are carried out in notebooks (Rmarkdown format), with visualisation & graphics within
 
 import.rmd: import and normalisation of raw data (produces .rdata files which other scripts depend on)
 markeropt.rmd: optimise marker set
 qual.rmd: examine sample quality
 normal.rmd: compare normalisation methods
-labmeeting18-2-7: produces .pdf report
-nstringnov17main.rmd: initial analyses
 
-.html files (produced via knitr) corresponding to the .rmd files are available (reports)
-
-
-All raw data is held in folders with .rcc files 
+All raw data is held in folders with .rcc files
 
 
 ## Samples
