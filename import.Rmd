@@ -174,7 +174,9 @@ size= c(rep("P",6), "I", "I", rep("P",8),rep("I",4), rep("I",4), rep("P", 32), r
 
 moult = c(rep("", 80), 0,0,10,20,rep("", 11),20,"","", 0,10,"", 20,rep("", 6) ),
 
- exp= c(rep("conc",8), rep("OvY", 12), rep("cut", 4), rep("OvY",4), rep("regen", 4), rep("OvY",8), rep("regen", 4), rep("OvY",4), rep("OvY", 12), rep("regen", 12), rep("OvY", 8), rep("moult", 4),rep("regen", 9), "OvY", "OvY", "moult",  "OvY", "OvY", "moult", "moult", "moult", "moult", rep("regen", 6) )
+ exp= c(rep("conc",8), rep("OvY", 12), rep("cut", 4), rep("OvY",4), rep("regen", 4), rep("OvY",8), rep("regen", 4), rep("OvY",4), rep("OvY", 12), rep("regen", 12), rep("OvY", 8), rep("moult", 4),rep("regen", 9), "OvY", "OvY", "moult",  "OvY", "OvY", "moult", "moult", "moult", "moult", rep("regen", 6) ), 
+
+prep = c(rep("Luke", 24), rep("Nikos", 8), rep("Luke", 4), rep("Nikos", 8), rep("Luke", 4), rep("Luke", 60))
 
 )
 
