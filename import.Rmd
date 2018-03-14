@@ -249,9 +249,19 @@ hk.norm <- subset(ctg1to9.whk.norm, ctg1to9.whk.norm[,1] == "Housekeeping")
 hk.raw <- subset(ctg1to9.whk.raw, ctg1to9.whk.raw[,1] == "Housekeeping")
 
 ```
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
+geneinf <- data.frame(name=codeset$Customer_Identifier, dir = ifelse(codeset$log2FoldChange> 0, "downregulated with age", "upregulated with age"))
+
+geneinf$in61 <- geneinf$name %in% gm$marker[gm$dir != "housekeeping"]
+
+
+
+```
 ##Saving
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
-save(sampleinfo,ctg1to9,ctg1to9intonly,ctg1to9un, codeset, hk.norm, hk.raw, file="nov17main_data.rdata")
+save(sampleinfo,ctg1to9,ctg1to9intonly,ctg1to9un, codeset,geneinf, hk.norm, hk.raw, file="nov17main_data.rdata")
 
 ```
 

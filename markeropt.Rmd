@@ -23,6 +23,8 @@ library(devtools)
 library(NanoStringNorm)
 library(gtools)
 library(Rmisc)
+library(dplyr)
+
 ```
 
 ###Data Import
@@ -35,53 +37,134 @@ load(file="nov17main_data.rdata")
 #What is our best set of markers?
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+mkc <- bc[,c(2,3,4,9,10,11,12,13:16,21:24)]
+mkc$mean <- rowMeans(mkc)
+
+mkc <- cbind(mkc, mk)
+
+mkc$name <- codeset$shortname
+mkc$db <- codeset$DrosoTopHit
+mkc$dir <- ""
+mkc$dir[rv$NSOvYl2fc >0] <- "downregulated with age"
+mkc$dir[rv$NSOvYl2fc <0] <- "upregulated with age"
+
+mkc$name <- factor(mkc$name, levels=mkc$name[order(mkc$nl2fc)])
+mkc$gr <- abs(mk$nl2fc) >1 & mk$nsmdir ==TRUE
+
+mkcoy <- cbind(mkc[,c(1,6:9,14:15)], mkc[,c(2:5,10:13)])
+
+o.t.result <- apply(mkcoy, 1, function (x) t.test(x[1:7],x[8:15]))
+mkc$p_value <- unlist(lapply(t.result, function(x) x$p.value))
+mkc$t_stat <- unlist(lapply(t.result, function(x) x$statistic))
+
+
+ctg34 <- as.data.frame(t(subset(t(ctg1to9), sampleinfo$ctg %in% c(3,4))))
+ctg34 <- ctg34[order(rownames(ctg34)), ]
+
+
+prop <- ctg34/bc[,1:24]
+
+
+plot(log(melt(ctg34)$value), log(melt(bc)$value), pch=".")
+
+hist(melt(ctg34)$value /melt(bc)$value)
+
+
+
+
+
+bc2 <- bc[,c(2,11:14, 23:24, 3,4, 9,10, 15,16, 21,22)]
+
+
+o.t.result <- apply(bc2, 1, function (x) t.test(x[1:7],x[8:15]))
+o.pval <- unlist(lapply(o.t.result, function(x) x$p.value))
+
+olds <- ctg34[,c(2,11:14, 23:24)]
+youngs <- ctg34[, c(3,4,9,10, 15,16, 21,22)]
+
+oys <- cbind(olds, youngs)
+
+
+
+x.t.result <- apply(oys, 1, function (x) t.test(x[1:ncol(olds)],x[ncol(olds)+1: ncol(oys)]))
+
+x.pval <- unlist(lapply(x.t.result, function(x) x$p.value))
+
+
+
+
+x.t.result <- apply(oys, 1, function (x) t.test(x[1:7],x[8:15]))
+
+x.pval <- unlist(lapply(x.t.result, function(x) x$p.value))
+
+
+
+
+ctg342 <- ctg34[,c(2,11:14, 23:24, 3,4, 9,10, 15,16, 21,22)]
+
+
+
+
+n.t.result <- apply(ctg342, 1, function (x) t.test(x[1:7],x[8:15]))
+
+n.pval <- unlist(lapply(n.t.result, function(x) x$p.value))
+
+
+plot(n.pval, x.pval, pch=".")
+
+
+
 md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$ctg %in% c(3,4) & sampleinfo$type %in% c("O", "Y")))
+
+md <- md[ order(rownames(md)),]
+
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+old <- t(subset(t(md), si$age == "O"))
+young <- t(subset(t(md), si$age == "Y"))
+
+oy <- cbind(old, young)
+
+x.t.result <- apply(oys, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1: ncol(oys)]))
+
+x.pval <- unlist(lapply(x.t.result, function(x) x$p.value))
+
+mdf <- as.data.frame(md)
+mdf$name <- rownames(mdf)
+mdf$pvaloy <- x.pval
+mdf$oysig <- mdf$pvaloy < 0.05
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
+
 si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
 old <- t(subset(t(md), si$age == "O"))
 young <- t(subset(t(md), si$age == "Y"))
 regen <- t(subset(t(ctg1to9), sampleinfo$type == "OR" & sampleinfo$qual == "ok"))
 
+
+
+
+
 nmd <- as.data.frame(md/rowMeans(md))
+nmd$name <- rownames(nmd)
+
+oy <- cbind(old, young)
+t.result <-  apply(oy, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1: ncol(oy)]))
 
 
-nmd$sname <- substr(rownames(md), 1,2)
-nmd$name <- rownames(md)
-nmd <- arrange(nmd, name)
-minf <- arrange(minf, name)
+nmd$p_value <- unlist(lapply(t.result, function(x) x$p.value))
 
+nmd <- left_join(nmd, geneinf, by="name")
 
-nmd <- nmd[order(nmd$sname),]
-nmd$dir <- ifelse(nmd$name %in% minf$name[minf$alldir == "downregulated with age"], "downregulated with age", "upregulated with age")
-
-#nmd$dir <- "upregulated with age"
-#nmd$dir[nmd$name %in% minf$name[minf$alldir == "downregulated with age"]] <- "downregulated with age"
 
 
 nmd$YvOl2fc <- foldchange2logratio(foldchange(rowMeans(young), rowMeans(old)))
 nmd$ROvOl2fc <- foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old)))
-
-oy <- cbind(old, young)
-t.result <- apply(oy, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oy)]))
-nmd$p_value <- unlist(lapply(t.result, function(x) x$p.value))
-
-
-
-
-plot( abs(nmd$YvOl2fc), nmd$p_value)
-
-
-#ggplot(nmd, aes(x=p_value, y=YvOl2fc))+  geom_point()+  scale_x_log10()
-
-nmd$sname <- factor(nmd$sname, levels=nmd$sname[order(nmd$p_value)])
-
-nmd$in61 <- nmd$name %in% minf$name[minf$in61]
-
-nmd$sig <- nmd$p_value <0.05
-nmd$sp <- round(nmd$p_value, 2)
-nmd$sigstar <- ""
-nmd$sigstar[nmd$p_value <0.05] <- "*"
-nmd$in61star <- ""
-nmd$in61star[nmd$in61 == TRUE] <- "*"
 
 
 
@@ -126,93 +209,6 @@ ggplot(nmd, aes(x=YvOl2fc, y=p_value, colour=in61))+geom_point()
 
 ```
 
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-#  geom_text(colour="black", angle=90, inherit.aes=FALSE, data=nmd, aes(x=sname, y=0, label=sp, alpha=sig))
-
-
-gmnmd <- subset(mnmd, (mnmd$p_value <0.05 & mnmd$samedir == TRUE))
-gmnmd$sname <- as.character(gmnmd$sname)
-
-ggplot(gmnmd, aes(x= sname, y=value, colour=age, label=variable)) +
-  theme_bw()+
-  geom_point(size=3, shape=95)+
- stat_summary()+
-  scale_y_continuous(trans="log2")+
-  facet_grid(~dir, space="free",scales="free" )+
-#  geom_boxplot(outlier.shape = NA)+
-  scale_colour_manual(values=c("cornflower blue", "red3")) +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=6))+
-  geom_text(size=2)
-```
-
-
-#Further optimisation of marker set
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
-old <- t(subset(t(md), si$age == "O"))
-young <- t(subset(t(md), si$age == "Y"))
-regen <- t(subset(t(ctg1to9), sampleinfo$type == "OR" & sampleinfo$qual == "ok"))
-
-nmd <- as.data.frame(md/rowMeans(md))
-nmd$sname <- substr(rownames(md), 1,2)
-nmd <- nmd[order(nmd$sname),]
-nmd$up <- codeset$log2FoldChange > 0
-nmd$YvOl2fc <- foldchange2logratio(foldchange(rowMeans(young), rowMeans(old)))
-nmd$ROvOl2fc <- foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old)))
-
-oy <- cbind(old, young)
-t.result <- apply(oy, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oy)]))
-nmd$p_value <- unlist(lapply(t.result, function(x) x$p.value))
-
-
-nmd$sname <- factor(nmd$sname, levels=nmd$sname[order(nmd$p_value)])
-
-nmd$dir <- "downregulated with age"
-nmd$dir[nmd$up == FALSE] <- "upregulated with age"
-
-nmd$sig <- nmd$p_value <0.05
-nmd$sp <- round(nmd$p_value, 2)
-nmd$sigstar <- ""
-nmd$sigstar[nmd$p_value <0.05] <- "*"
-
-nmd <- nmd[order(nmd$sname),]
-codeset <- codeset[codeset$Customer_Identifier,]
-
-
-nmd$samedir <- sign(codeset$log2FoldChange) == sign(nmd$YvOl2fc) 
-
-
-ngm <- rownames(nmd)[nmd$p_value <0.05 & nmd$samedir == TRUE]
-alldir <- rep("downregulated with age",195)
-alldir[sign(codeset$log2FoldChange) <0] <- "upregulated with age"
-
-minf <- data.frame(isgood= nmd$p_value <0.05 & nmd$samedir == TRUE, alldir, name=codeset$Customer_Identifier, in61 = codeset$Customer_Identifier %in% gm$marker, pval = nmd$p_value)
-
-
-mnmd <- melt(nmd, id.vars=c("p_value", "sname", "up", "dir", "sp", "sig", "sigstar", "samedir", "YvOl2fc", "ROvOl2fc"))
-mnmd$age <- "old"
-mnmd$age[mnmd$variable %in% colnames(young)] <- "young"
-mnmd$ing <- ""
-mnmd$ing[mnmd$variable %in% gm$marker] <- "."
-
-
-ggplot(mnmd, aes(x= sname, y=value, colour=age, fill=age)) +
-  theme_bw()+
-#  geom_point(size=3, shape=95)+
-  scale_y_continuous(trans="log2")+
-  facet_grid(~dir, space="free",scales="free" )+
- geom_boxplot(outlier.shape = NA)+
-  scale_colour_manual(values=c("cornflower blue", "red3"))+ 
-  scale_fill_manual(values=c("cornflower blue", "red3")) +
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))+
-  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
-  xlab("Marker")+
-  ylab("Expression (normalised to mean)")+
-  ggtitle("All markers")
-
-```
-
 #Compare old vs new marker set
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
@@ -221,14 +217,14 @@ log <- sampleinfo$sex =="F" & sampleinfo$ctg %in% c(3,4,5,7) & sampleinfo$qual =
 
 bcmin <- ctg1to9[,log== TRUE]
 bcmin.groups <- subset(sampleinfo$type, log==TRUE)
-bcmin <- subset(bcmin, rownames(bcmin) %in% minf$name[minf$in61==T])
+bcmin <- subset(bcmin, rownames(bcmin) %in% geneinf$name[geneinf$in61==T])
 tbc <- t(bcmin)
 tbc <- tbc[,colSums(tbc) > 0]
 bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
 bc.groups <- bcmin.groups
 
 
-a= ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle("PCA of Old vs Young (females): 61 chosen markers")+
+a=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle("PCA of Old vs Young (females): 61 chosen markers")+
     theme_minimal() +
   scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
   theme(plot.title=element_text(size=8,face="bold"))
@@ -237,7 +233,7 @@ a= ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE
 
 bcmin <- ctg1to9[,log== TRUE]
 bcmin.groups <- subset(sampleinfo$type, log==TRUE)
-bcmin <- subset(bcmin, rownames(bcmin) %in% minf$name[minf$pval<0.05])
+bcmin <- subset(bcmin, rownames(bcmin) %in% nmd$name[nmd$p_val<0.05])
 tbc <- t(bcmin)
 tbc <- tbc[,colSums(tbc) > 0]
 bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
@@ -248,48 +244,8 @@ b=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE,
   scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
   theme(plot.title=element_text(size=8,face="bold"))
 
-bcmin <- ctg1to9[,log== TRUE]
-bcmin.groups <- subset(sampleinfo$type, log==TRUE)
 
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-c=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ," markers"))+
-    theme_minimal() +
-  scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
-  theme(plot.title=element_text(size=8,face="bold"))
-
-
-bcmin <- ctg1to9[,log== TRUE]
-bcmin.groups <- subset(sampleinfo$type, log==TRUE)
-bcmin <- subset(bcmin, rownames(bcmin) %in% minf$name[minf$in61==T] & rownames(bcmin) %in% minf$name[minf$isgood==T])
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-d=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ," newly chosen markers (both lists)"))+
-    theme_minimal() +
-  scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
-  theme(plot.title=element_text(size=8,face="bold"))
-
-
-bcmin <- ctg1to9[,log== TRUE]
-bcmin.groups <- subset(sampleinfo$type, log==TRUE)
-bcmin <- subset(bcmin, rownames(bcmin) %in% minf$name[minf$in61==T] & rownames(bcmin) %in% minf$name[minf$isgood==F])
-tbc <- t(bcmin)
-tbc <- tbc[,colSums(tbc) > 0]
-bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
-bc.groups <- bcmin.groups
-
-ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ," newly chosen markers (both lists)"))+
-    theme_minimal() +
-  scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
-  theme(plot.title=element_text(size=8,face="bold"))
-
-multiplot(a,c,b,d, cols=2)
+multiplot(a,b, cols=2)
 
 
 ```
