@@ -24,6 +24,10 @@ library(NanoStringNorm)
 library(gtools)
 library(Rmisc)
 library(dplyr)
+library(tidyr)
+library(caret)
+library(e1071)
+library(caTools)
 
 ```
 
@@ -35,106 +39,6 @@ load(file="nov17main_data.rdata")
 ```
 
 #What is our best set of markers?
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-
-mkc <- bc[,c(2,3,4,9,10,11,12,13:16,21:24)]
-mkc$mean <- rowMeans(mkc)
-
-mkc <- cbind(mkc, mk)
-
-mkc$name <- codeset$shortname
-mkc$db <- codeset$DrosoTopHit
-mkc$dir <- ""
-mkc$dir[rv$NSOvYl2fc >0] <- "downregulated with age"
-mkc$dir[rv$NSOvYl2fc <0] <- "upregulated with age"
-
-mkc$name <- factor(mkc$name, levels=mkc$name[order(mkc$nl2fc)])
-mkc$gr <- abs(mk$nl2fc) >1 & mk$nsmdir ==TRUE
-
-mkcoy <- cbind(mkc[,c(1,6:9,14:15)], mkc[,c(2:5,10:13)])
-
-o.t.result <- apply(mkcoy, 1, function (x) t.test(x[1:7],x[8:15]))
-mkc$p_value <- unlist(lapply(t.result, function(x) x$p.value))
-mkc$t_stat <- unlist(lapply(t.result, function(x) x$statistic))
-
-
-ctg34 <- as.data.frame(t(subset(t(ctg1to9), sampleinfo$ctg %in% c(3,4))))
-ctg34 <- ctg34[order(rownames(ctg34)), ]
-
-
-prop <- ctg34/bc[,1:24]
-
-
-plot(log(melt(ctg34)$value), log(melt(bc)$value), pch=".")
-
-hist(melt(ctg34)$value /melt(bc)$value)
-
-
-
-
-
-bc2 <- bc[,c(2,11:14, 23:24, 3,4, 9,10, 15,16, 21,22)]
-
-
-o.t.result <- apply(bc2, 1, function (x) t.test(x[1:7],x[8:15]))
-o.pval <- unlist(lapply(o.t.result, function(x) x$p.value))
-
-olds <- ctg34[,c(2,11:14, 23:24)]
-youngs <- ctg34[, c(3,4,9,10, 15,16, 21,22)]
-
-oys <- cbind(olds, youngs)
-
-
-
-x.t.result <- apply(oys, 1, function (x) t.test(x[1:ncol(olds)],x[ncol(olds)+1: ncol(oys)]))
-
-x.pval <- unlist(lapply(x.t.result, function(x) x$p.value))
-
-
-
-
-x.t.result <- apply(oys, 1, function (x) t.test(x[1:7],x[8:15]))
-
-x.pval <- unlist(lapply(x.t.result, function(x) x$p.value))
-
-
-
-
-ctg342 <- ctg34[,c(2,11:14, 23:24, 3,4, 9,10, 15,16, 21,22)]
-
-
-
-
-n.t.result <- apply(ctg342, 1, function (x) t.test(x[1:7],x[8:15]))
-
-n.pval <- unlist(lapply(n.t.result, function(x) x$p.value))
-
-
-plot(n.pval, x.pval, pch=".")
-
-
-
-md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$ctg %in% c(3,4) & sampleinfo$type %in% c("O", "Y")))
-
-md <- md[ order(rownames(md)),]
-
-si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
-old <- t(subset(t(md), si$age == "O"))
-young <- t(subset(t(md), si$age == "Y"))
-
-oy <- cbind(old, young)
-
-x.t.result <- apply(oys, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1: ncol(oys)]))
-
-x.pval <- unlist(lapply(x.t.result, function(x) x$p.value))
-
-mdf <- as.data.frame(md)
-mdf$name <- rownames(mdf)
-mdf$pvaloy <- x.pval
-mdf$oysig <- mdf$pvaloy < 0.05
-
-```
 
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
@@ -152,6 +56,7 @@ regen <- t(subset(t(ctg1to9), sampleinfo$type == "OR" & sampleinfo$qual == "ok")
 
 nmd <- as.data.frame(md/rowMeans(md))
 nmd$name <- rownames(nmd)
+nmd$sname <- substr(nmd$name, 1,2)
 
 oy <- cbind(old, young)
 t.result <-  apply(oy, 1, function (x) t.test(x[1:ncol(old)],x[ncol(old)+1: ncol(oy)]))
@@ -166,48 +71,64 @@ nmd <- left_join(nmd, geneinf, by="name")
 nmd$YvOl2fc <- foldchange2logratio(foldchange(rowMeans(young), rowMeans(old)))
 nmd$ROvOl2fc <- foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old)))
 
+nmd$chosen <- nmd$p_value < 0.05 & sign(nmd$transl2fc) == sign(nmd$YvOl2fc)
 
 
-ggplot(nmd, aes(y=p_value, x=abs(YvOl2fc), colour=in61))  +geom_point()
+ggplot(nmd, aes(y=p_value, x=abs(YvOl2fc), colour=in61,shape=in61,  fill=chosen))  +
+  scale_shape_manual(values=c(21,22))+
+  geom_point()+ 
+  theme_minimal()+
+  scale_fill_manual(values=c("cornflower blue", "forestgreen"), name="Amongst new chosen set") +
+  scale_colour_manual(values=c("red3", "black"))+
+  xlab("Absolute Young vs Old Log2Foldchange") +
+  ylab("Old vs young p-value")+
+  ggtitle(paste(sum(nmd$chosen), " markers: new optimised set"))+
+    geom_hline(linetype=2, yintercept = 0.05)
+  
 
 
 
 ```
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+nmd$sname <- factor(nmd$sname, levels=nmd$sname[order(nmd$p_value)])
 
-nmd <- nmd[order(nmd$sname),]
-codeset <- codeset[codeset$Customer_Identifier,]
+mnmd <- gather(nmd, key=sample, value=normexp, O2a:LFPC)
+mnmd$age <- ifelse(mnmd$sample %in% colnames(young), "young", "old")
 
 
-nmd$samedir <- sign(codeset$log2FoldChange) == sign(nmd$YvOl2fc) 
-
-mnmd <- melt(nmd, id.vars=c("p_value", "sname","dir", "sp", "sig", "sigstar", "samedir", "YvOl2fc", "ROvOl2fc", "in61", "in61star", "name"))
-mnmd$age <- "old"
-mnmd$age[mnmd$variable %in% colnames(young)] <- "young"
-mnmd$ing <- ""
-mnmd$ing[mnmd$variable %in% gm$marker] <- "."
-
-ggplot(mnmd, aes(x= sname, y=value, colour=age)) +
-  theme_bw()+
+ggplot(mnmd, aes(x= sname, y=normexp, colour=age)) +
+  theme_minimal()+
   geom_point(size=3, shape=95)+
  stat_summary()+
   scale_y_continuous(trans="log2")+
   facet_grid(~dir, space="free",scales="free" )+
 #  geom_boxplot(outlier.shape = NA)+
-  scale_colour_manual(values=c("cornflower blue", "red3"))+ 
+  scale_colour_manual(values=c("cornflower blue", "red3"))+
   theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))+
-  geom_text(colour="black", aes(label=sigstar,y=10))+
-  geom_text(colour="green", aes(label=ing,y=0.015))+
-  geom_text(colour="forest green", aes(label=in61star,y=0.1))
+  geom_text(colour="black",label="*", data=nmd,inherit.aes=FALSE,  aes(alpha=chosen, x=sname, y=8))+
+  scale_alpha_manual(values=c(0,1))
 
-sum(nmd$sig)
-
-
-ggplot(nmd, aes(x=YvOl2fc, y=p_value, colour=in61))+geom_point()
-  
 
 ```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+
+ggplot(mnmd, aes(x= sname, y=normexp, colour=age)) +
+  theme_minimal()+
+  geom_boxplot(outlier.shape = NA)+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "red3"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=4))+
+  geom_text(colour="black",label="*", data=nmd,inherit.aes=FALSE,  aes(alpha=chosen, x=sname, y=8))
+
+
+```
+
+
 
 #Compare old vs new marker set
 
@@ -233,7 +154,7 @@ a=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE,
 
 bcmin <- ctg1to9[,log== TRUE]
 bcmin.groups <- subset(sampleinfo$type, log==TRUE)
-bcmin <- subset(bcmin, rownames(bcmin) %in% nmd$name[nmd$p_val<0.05])
+bcmin <- subset(bcmin, rownames(bcmin) %in% nmd$name[nmd$chosen==TRUE])
 tbc <- t(bcmin)
 tbc <- tbc[,colSums(tbc) > 0]
 bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
@@ -250,111 +171,119 @@ multiplot(a,b, cols=2)
 
 ```
 
+Without Nikos' samples:
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 
-log <- sampleinfo$sex =="F" & sampleinfo$ctg %in% c(3,4,5,7) & sampleinfo$qual == "ok" & sampleinfo$reg == "" & sampleinfo$age != "N" & sampleinfo$prep== "Luke"
+log <- sampleinfo$sex =="F" & sampleinfo$ctg %in% c(3,4,5,7) & sampleinfo$qual == "ok" & sampleinfo$reg == "" & sampleinfo$age != "N" &sampleinfo$prep == "Luke"
+
 bcmin <- ctg1to9[,log== TRUE]
 bcmin.groups <- subset(sampleinfo$type, log==TRUE)
-bcmin <- subset(bcmin, rownames(bcmin) %in% minf$name[minf$in61==T])
+bcmin <- subset(bcmin, rownames(bcmin) %in% geneinf$name[geneinf$in61==T])
 tbc <- t(bcmin)
 tbc <- tbc[,colSums(tbc) > 0]
 bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
 bc.groups <- bcmin.groups
 
 
-a= ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=T, labels=rownames(tbc),varname.size=1,varname.abbrev = TRUE, groups=bc.groups)+ggtitle("PCA of Old vs Young (females): 61 chosen markers")+
+a=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle("PCA of Old vs Young (females): 61 chosen markers")+
     theme_minimal() +
   scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
   theme(plot.title=element_text(size=8,face="bold"))
 
+
+
 bcmin <- ctg1to9[,log== TRUE]
 bcmin.groups <- subset(sampleinfo$type, log==TRUE)
-bcmin <- subset(bcmin, rownames(bcmin) %in% minf$name[minf$isgood==T])
+bcmin <- subset(bcmin, rownames(bcmin) %in% nmd$name[nmd$chosen==TRUE])
 tbc <- t(bcmin)
 tbc <- tbc[,colSums(tbc) > 0]
 bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
 bc.groups <- bcmin.groups
 
-b= ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=T, varname.size=1,varname.abbrev = TRUE,labels=rownames(tbc), groups=bc.groups)+ggtitle("PCA of Old vs Young (females): 58 newly chosen markers")+
+b=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, labels=rownames(tbc), groups=bc.groups)+ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ,"newly chosen markers"))+
     theme_minimal() +
   scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
   theme(plot.title=element_text(size=8,face="bold"))
+
 
 multiplot(a,b, cols=2)
 
 
 ```
 
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-gnmd <- subset(nmd, nmd$p_value <0.05 & nmd$samedir == TRUE)
 
-a=ggplot(data=gnmd, aes(x=YvOl2fc, y=ROvOl2fc, label=sname))+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+gnmd <- subset(nmd, nmd$chosen== TRUE)
+
+ggplot(data=nmd, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=chosen))+
   geom_hline(yintercept=0, colour="black")+
   geom_vline(xintercept=0, colour="black")+
-  theme_bw()+
+  theme_minimal()+
   xlim(-5,+5)+
   ylim(-5,5)+
- scale_colour_manual(values= c("forest green", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
+ scale_colour_manual(values= c("grey", "forest green"), name="Marker", labels=c("other","chosen"))+
   xlab("Young vs Old Log2 Fold Change") +
   ylab("Regenerated vs Old Log2 Fold Change")+
 #  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
 #  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
-  geom_point( size=1.5, colour="cornflower blue")+
+  geom_point( size=1.5)+
+
+
   geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
   theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
-  coord_fixed(ratio=1)+
-  theme(strip.text=element_blank())
+  coord_fixed(ratio=1)
   
 
+```
 
+#Logistic regression model to separate old from young
 
-ggsave(plot=a, height=7.5,width=15,dpi=200, device="png", filename=paste("nplot.png"), limitsize = FALSE,bg = "transparent")
+First: use all markers as predictors of status in old vs young
 
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 
+dmat<- as.data.frame(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
 
-b=ggplot(data=gnmd, aes(x=YvOl2fc, y=0, label=sname))+
-  geom_hline(yintercept=0, colour="black")+
-  theme_bw()+
-  xlim(-5,+5)+
-  ylim(-5,5)+
- scale_colour_manual(values= c("forest green", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
-  xlab("Young vs Old Log2 Fold Change") +
-  ylab("")+
-#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
-#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
-  geom_point( size=1.5, colour="cornflower blue")+
-  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
-  coord_fixed(ratio=1)+
-  theme(strip.text=element_blank())
- 
+dmat$age <- rownames(dmat) %in% colnames(young)
 
-ggsave(plot=b, height=7.5,width=15,dpi=200, device="png", filename=paste("nplotb.png"), limitsize = FALSE,bg = "transparent")
- 
+logmod <- glm(age~., dmat, family='binomial')
 
-c=ggplot(data=gnmd, aes(x=YvOl2fc, y=0, label=sname))+
-  geom_hline(yintercept=0, colour="black")+
-  geom_vline(xintercept=0, colour="black")+
-  theme_bw()+
-  xlim(-5,+5)+
-  ylim(-5,5)+
- scale_colour_manual(values= c("forest green", "cornflower blue"), name="Marker", labels=c("other","61 chosen"))+
-  xlab("Young vs Old Log2 Fold Change") +
-  ylab("Regenerated vs Old Log2 Fold Change")+
-#  geom_rect(inherit.aes=FALSE, xmin=-10, ymin=-10, xmax=0, ymax=0, fill="yellow", alpha=0.004)+
-#  geom_rect(inherit.aes=FALSE,xmin=0, ymin=0, xmax=10, ymax=10, fill="yellow", alpha=0.004)+
-  geom_point( size=1.5, colour="cornflower blue")+
-  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
-  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )+
-  coord_fixed(ratio=1)+
-  theme(strip.text=element_blank())
+pred <- predict(logmod, type='response')
 
+predclass <- ifelse(pred> 0.5, T, F)
 
-ggsave(plot=c, height=7.5,width=15,dpi=200, device="png", filename=paste("nplotc.png"), limitsize = FALSE,bg = "transparent")
+confusionMatrix(predclass, dmat$age)
+
+colAUC(pred, dmat$age, plotROC=T)
 
 ```
 
 
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+dmat$age <- ifelse(rownames(dmat) %in% colnames(young), "young", "old")
+
+myControl <- trainControl(
+  method = "cv",
+  number = 10,
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE, # IMPORTANT!
+  verboseIter = TRUE
+)
+
+(logmodcv <- train(age~.,dmat,method='glm', trControl=myControl ))
+
+#ggplot( cbind(dmat, pred), aes(x=age, y=pred))+geom_boxplot()
+
+predcv <- predict(logmodcv)
+
+
+
+confusionMatrix(predcv, dmat$age)
+
+
+```
 
 #Nikos plot
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}

@@ -252,7 +252,7 @@ hk.raw <- subset(ctg1to9.whk.raw, ctg1to9.whk.raw[,1] == "Housekeeping")
 
 
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
-geneinf <- data.frame(name=codeset$Customer_Identifier, dir = ifelse(codeset$log2FoldChange> 0, "downregulated with age", "upregulated with age"))
+geneinf <- data.frame(name=codeset$Customer_Identifier,transl2fc=codeset$log2FoldChange,  dir = ifelse(codeset$log2FoldChange> 0, "downregulated with age", "upregulated with age"))
 
 geneinf$in61 <- geneinf$name %in% gm$marker[gm$dir != "housekeeping"]
 
