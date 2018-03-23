@@ -128,6 +128,14 @@ ggplot(mnmd, aes(x= sname, y=normexp, colour=age)) +
 
 ```
 
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+minf <- nmd[,colnames(nmd) %in% c("name"   ,   "sname"    , "p_value",   "transl2fc", "dir"  ,     "in61"    ,  "YvOl2fc"  , "ROvOl2fc",  "chosen" )]
+
+
+
+
+
+```
 
 
 #Compare old vs new marker set
@@ -245,9 +253,11 @@ First: use all markers as predictors of status in old vs young
 
 dmat<- as.data.frame(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
 
+
 dmat$age <- rownames(dmat) %in% colnames(young)
 
-logmod <- glm(age~., dmat, family='binomial')
+#logmod <- glm(age~., dmat, family='binomial')
+logmod <- lm(age~., dmat,method="binomial" )
 
 pred <- predict(logmod, type='response')
 
@@ -256,6 +266,12 @@ predclass <- ifelse(pred> 0.5, T, F)
 confusionMatrix(predclass, dmat$age)
 
 colAUC(pred, dmat$age, plotROC=T)
+
+
+(modcoefs <- data.frame(logmodcoef=coef(logmod), name=names(coef(logmod))))
+
+
+minf2 <- left_join(minf, modcoefs, by="name")
 
 ```
 
@@ -266,7 +282,7 @@ dmat$age <- ifelse(rownames(dmat) %in% colnames(young), "young", "old")
 
 myControl <- trainControl(
   method = "cv",
-  number = 10,
+  number = 4,
   summaryFunction = twoClassSummary,
   classProbs = TRUE, # IMPORTANT!
   verboseIter = TRUE
@@ -280,8 +296,11 @@ predcv <- predict(logmodcv)
 
 
 
-confusionMatrix(predcv, dmat$age)
 
+(modcoefs <- data.frame(logmodcoef=coef(logmodcv$finalModel), name=names(coef(logmodcv$finalModel))))
+
+
+minf2 <- left_join(minf, modcoefs, by="name")
 
 ```
 
