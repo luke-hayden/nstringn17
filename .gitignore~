@@ -1,0 +1,6 @@
+*.svg
+*.png
+*ctg*
+extraplots/
+.Rhistory
+
