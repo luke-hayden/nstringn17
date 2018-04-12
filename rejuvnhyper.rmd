@@ -1,0 +1,359 @@
+---
+title: "Rejuvenating and Hyper-aging markers"
+author: "Luke Hayden"
+date: "April 12, 2018"
+output: html_document
+---
+
+#Setup
+###Packages
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("DESeq2")
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("DESeq2")
+
+library(ggplot2)
+library(rmarkdown)
+library(gplots)
+library(RColorBrewer)
+library(reshape2)
+library(scales)
+library(ggbiplot)
+library(devtools)
+library(NanoStringNorm)
+library(gtools)
+library(Rmisc)
+library(dplyr)
+library(tidyr)
+library(caret)
+library(e1071)
+library(caTools)
+library(FinCal)
+
+```
+
+###Data Import
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
+setwd("~/Documents/nstringnov17")
+load(file="nov17main_data.rdata")
+```
+
+#Nikos plot
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <- ctg1to9
+
+old <- t(subset(t(md), sampleinfo$type =="O" &  sampleinfo$sex == "F" & sampleinfo$qual =="ok" &sampleinfo$ctg %in% c(3,4,5,7)))
+
+young <- t(subset(t(md), sampleinfo$type =="Y" & sampleinfo$sex== "F" & sampleinfo$qual =="ok"&sampleinfo$ctg %in% c(3,4,5,7)))
+
+regen <- t(subset(t(md), sampleinfo$type =="OR" & sampleinfo$qual =="ok" &sampleinfo$ctg>2))
+
+vardat <- data.frame(name=rownames(old), 
+                     oldmean=rowMeans(old), 
+                     oldsd= apply(old,1, sd), 
+                     oldcv = coefficient.variation(rowMeans(old), apply(old,1, sd)),
+                   youngmean=rowMeans(young), 
+                     youngsd= apply(young,1, sd), 
+                     youngcv = coefficient.variation(rowMeans(young), apply(young,1, sd)), 
+                   regenmean=rowMeans(regen), 
+                     regensd= apply(regen,1, sd), 
+                     regencv = coefficient.variation(rowMeans(regen), apply(regen,1, sd))
+                   ) %>%
+  left_join(minf, by="name")
+
+
+oreg <- cbind(old, regen)
+
+t.result <- apply(oreg, 1, function (x)
+t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oreg)]))
+vardat$ovreg.pval <- unlist(lapply(t.result, function(x) x$p.value))
+vardat$ovregsig <- vardat$ovreg.pval <0.1
+
+ggplot(data=vardat, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=chosen))+
+  geom_point()+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  scale_colour_manual(values= c("grey", "forest green"), name="Marker", labels=c("other","chosen"))+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")
+
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+vardat2 <- subset(vardat, vardat$chosen ==TRUE)
+
+ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regencv, shape=ovregsig))+
+  geom_point(size=3)+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_minimal()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(21,23), labels=c(">0.1", "<0.1"), breaks=c(FALSE, TRUE) ,name="RO vs O p-value" )+
+  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.6, name="cv (regen)")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)
+
+
+
+```
+
+#Pairwise log2foldchange
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+md <-t(subset(t(ctg1to9), sampleinfo$type %in% c("O", "Y", "OR") &  sampleinfo$sex == "F" & sampleinfo$qual =="ok" &sampleinfo$ctg %in% c(3,4,5,7)))
+
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+
+YvOpairfolds <- data.frame(matrix(ncol=0, nrow=nrow(md)))
+addfolds <- data.frame(matrix(ncol=0, nrow=nrow(md)))
+pairnames <- c()
+
+for (yi in 1:ncol(young)){
+  for (oi in 1:ncol(old)){
+    addfolds <- cbind(addfolds, foldchange2logratio(foldchange(young[,yi], old[,oi])))
+    pairnames <- append(pairnames, paste(colnames(young)[yi], colnames(old)[oi], sep="-"))
+  }
+  colnames(addfolds) <- pairnames
+  YvOpairfolds <- cbind(YvOpairfolds, addfolds)
+  
+  addfolds <- data.frame(matrix(ncol=0, nrow=nrow(md)))
+  pairnames <- c()
+
+}
+
+
+ROvOpairfolds <- data.frame(matrix(ncol=0, nrow=nrow(md)))
+
+
+for (yi in 1:ncol(regen)){
+  for (oi in 1:ncol(old)){
+    addfolds <- cbind(addfolds, foldchange2logratio(foldchange(regen[,yi], old[,oi])))
+    pairnames <- append(pairnames, paste(colnames(regen)[yi], colnames(old)[oi], sep="-"))
+  }
+  colnames(addfolds) <- pairnames
+  ROvOpairfolds <- cbind(ROvOpairfolds, addfolds)
+  
+  addfolds <- data.frame(matrix(ncol=0, nrow=nrow(md)))
+  pairnames <- c()
+
+}
+
+YvOpairfoldsna <- YvOpairfolds
+YvOpairfoldsna[mapply(is.infinite, YvOpairfoldsna)] <- NA
+
+ROvOpairfoldsna <- ROvOpairfolds
+ROvOpairfoldsna[mapply(is.infinite, ROvOpairfoldsna)] <- NA
+
+```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+pairfoldsum <- data.frame(
+  name=rownames(YvOpairfolds), 
+  YvOfcmean = rowMeans(YvOpairfoldsna, na.rm=T), 
+  YvOfcsd = apply(YvOpairfoldsna, 1, sd, na.rm=T), 
+  ROvOfcmean = rowMeans(ROvOpairfoldsna, na.rm=T), 
+  ROvOfcsd = apply(ROvOpairfoldsna, 1, sd, na.rm=T) 
+) %>%
+  left_join(minf, by="name")%>%
+  filter(chosen==T)
+
+ggplot(pairfoldsum, aes())
+
+
+
+```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+
+
+
+
+YvOpairfolds2 <- YvOpairfolds%>% 
+  mutate(name= rownames(YvOpairfolds))%>%
+  subset(rownames(YvOpairfolds) %in% minf$name[minf$chosen==T]) %>%
+  gather(key="sample", value="pairwise YvOl2fc", -name)
+
+
+
+
+ROvOpairfolds2 <- ROvOpairfolds %>% 
+  mutate(name= rownames(YvOpairfolds))%>%
+  subset(rownames(ROvOpairfolds) %in% minf$name[minf$chosen==T]) %>%
+  gather(key="sample", value="pairwise ROvOl2fc", -name)
+
+YvOpairfolds2 <-  left_join(YvOpairfolds2,
+                            data.frame(name=rownames(ROvOpairfolds),
+                                       meanROvOlfc= rowMeans(ROvOpairfoldsna, na.rm=T)), 
+                            by="name")
+
+
+ROvOpairfolds2 <-  left_join(ROvOpairfolds2,
+                            data.frame(name=rownames(YvOpairfolds),
+                                       meanYvOlfc= rowMeans(YvOpairfoldsna, na.rm=T)), 
+                            by="name")
+
+```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+
+
+ggplot(data=ROvOpairfolds2, aes(x= `pairwise ROvOl2fc`, y=meanYvOlfc))+
+         geom_point()+
+  geom_point(data=YvOpairfolds2, aes(y= `pairwise YvOl2fc`, x=meanROvOlfc))
+
+```
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+ggplot(data=vardat2, aes(y=ROvOl2fc, label=sname, x=regencv, shape=ovregsig, fill=dir))+
+  geom_point(size=3)+
+  theme_minimal()+
+  xlab("Coefficient of variation (amongst regenerated samples)") +
+ ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_fill_manual(values=c("dark blue", "forest green"))+
+ scale_shape_manual(values=c(21,23), labels=c(">0.1", "<0.1"), breaks=c(FALSE, TRUE) ,name="RO vs O p-value" )
+
+
+ggplot(vardat2, aes(x=sname, y=regencv))+geom_point()
+```
+
+#Rejuvenating Markers
+Only those with:
+from chosen 80 markers
+Ratio of YvO l2fc / RO vs O l2fc > 0.6
+cv between regenerated <0.5
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+vardat$rejuv <- "other"
+
+cvthresh<- 0.4
+
+
+vardat$rejuv[vardat$chosen== TRUE & vardat$regencv < cvthresh & vardat$ROvOl2fc/vardat$YvOl2fc > 0.6] <- "rejuvenated"
+
+
+vardat$rejuv[vardat$chosen== TRUE & vardat$regencv < cvthresh & vardat$ROvOl2fc/vardat$YvOl2fc < -0.6] <- "aged"
+
+
+vardat2 <- subset(vardat, vardat$chosen ==TRUE)
+ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regencv, shape=ovregsig, colour=rejuv))+
+  geom_point(size=3)+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_minimal()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(21,23), labels=c(">0.1", "<0.1"), breaks=c(FALSE, TRUE) ,name="RO vs O p-value" )+
+  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.6, name="cv (regen)")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+  guides(fill=F)+
+  scale_colour_manual(values=c("violet","black", "forest green" ))
+
+
+
+md <- ctg1to9[,colnames(ctg1to9) %in% c(colnames(old), colnames(young), colnames(regen))]
+md <- data.frame(md/rowMeans(md)) 
+md$name <- rownames(md)
+md <- inner_join(md, vardat2, by="name") %>% 
+  gather(key="sample", value="normexp", 1:sum(ncol(old), ncol(young), ncol(regen))) %>%
+  left_join(sampleinfo, by="sample")%>%  inner_join(codeset, by=c("name" = "Customer_Identifier"))
+
+ggplot(data=subset(md, md$rejuv != "other"), aes(x=sname, y=normexp, fill=type, colour=type))+
+#  geom_point(shape=95)+
+  geom_violin(outlier.shape = NA)+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+  facet_grid(~rejuv, space="free", scale="free")+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"))+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_minimal()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+
+
+
+ggplot(data=subset(md, md$rejuv != "other"), aes(x=sname, y=normexp, fill=type, colour=type))+
+#  geom_point(shape=95)+
+#  geom_violin(outlier.shape = NA)+
+  geom_hline(yintercept=1, linetype=2)+
+  stat_summary()+
+  facet_grid(~rejuv, space="free", scale="free")+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"))+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_minimal()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+ggplot(data=md, aes(x=type, y=normexp, fill=type))+
+#  geom_point(shape=95)+
+  geom_violin(outlier.shape = NA)+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+  facet_grid(~rejuv, space="free", scale="free")+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_minimal()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+
+
+ggplot(data=md, aes(x=type, y=normexp, colour=type))+
+  geom_point(alpha=0.2)+
+#  geom_violin(outlier.shape = NA)+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+  facet_grid(~rejuv, space="free", scale="free")+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_minimal()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+
+
+
+```
+
+
+#Hyper-aged and rejuvenated marker identity
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+print("rejuvenated:")
+levels(as.factor(as.character(subset(md, md$rejuv == "rejuvenated")$TopHit)))
+
+print("aged:")
+levels(as.factor(as.character(subset(md, md$rejuv == "aged")$TopHit)))
+
+```
