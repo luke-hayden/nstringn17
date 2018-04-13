@@ -1,26 +1,20 @@
----
-title: "Normalisation"
-author: "Luke Hayden"
-output: html_document
----
 
 ##Setup
 ###Packages
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 
 
 library(rmarkdown)
 library(NanoStringNorm)
 
 
-```
+
 
 ###Data Import
-We will look at our whole dataset: 108 RNA samples from 3 separate periods. 
+#We will look at our whole dataset: 108 RNA samples from 3 separate periods. 
 
 ###Raw
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 
+setwd("~/Documents/nstringnov17")
 
 gm <- read.csv("gmark.csv")
 
@@ -53,11 +47,11 @@ setwd("~/Documents/nstringnov17/ctg9")
 
 ct9.raw <- read.markup.RCC()
 
-````
+
 
 ###Normalised fully
 
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
+
 codeset <- read.table("CodeSet.txt")
 codeset$shortname <- substr(codeset$Customer_Identifier, 1,2)
 Cht <- read.table("CodeSetCountdata.txt")
@@ -79,10 +73,10 @@ ctg9.norm <- NanoStringNorm(x = ct9.raw, anno = NA, CodeCount ='sum', Background
 
 
 
-````
+
 
 #Internal controls only
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
+
 
 ctg5and6.intonly <- NanoStringNorm(x = ct5and6.raw, anno = NA, CodeCount ='sum', Background ="mean",OtherNorm = "none", round.values = FALSE, take.log = FALSE,return.matrix.of.endogenous.probes = TRUE);
 
@@ -102,11 +96,6 @@ ctg9.intonly <- NanoStringNorm(x = ct9.raw, anno = NA, CodeCount ='sum', Backgro
 ctg1to9intonly <- cbind(ctg1and2.intonly,ctg3and4.intonly, ctg5and6hi.intonly, ctg7and8hi.intonly, ctg9.intonly)
 
 
-````
-
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
-
 ctg5and6.unnorm <- NanoStringNorm(x = ct5and6.raw, anno = NA, CodeCount ='none', Background ="none",OtherNorm = "none", round.values = FALSE, take.log = FALSE,return.matrix.of.endogenous.probes = TRUE);
 
 ctg5and6hi.unnorm <- NanoStringNorm(x = ct5and6hi.raw, anno = NA, CodeCount ='none', Background ="none",OtherNorm = "none", round.values = FALSE, take.log = FALSE,return.matrix.of.endogenous.probes = TRUE);
@@ -125,9 +114,8 @@ ctg9.unnorm <- NanoStringNorm(x = ct9.raw, anno = NA, CodeCount ='none', Backgro
 ctg1to9un <- cbind(ctg1and2.unnorm,ctg3and4.unnorm, ctg5and6hi.unnorm, ctg7and8hi.unnorm, ctg9.unnorm)
 
 
-````
 #Column data
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
+
 
 
 colnames(ctg1and2.norm) <- c("C200", "C100", "C50", "C25", "C12", "C6", "CIA", "CIB", "FYA", "FOA", "MYA", "MOA","FYB",	"FOB",	"MYB",	"MOB",	"MOIA",	"MOIB","MOIC",	"MOID",	"CS1X",	"CS0.5X",	"CS0.25XA",	"CS0.25XB")
@@ -159,25 +147,25 @@ colnames(ctg1to9un) <- colnames(ctg1to9)
 
 colnames(ctg1to9intonly) <- colnames(ctg1to9)
 sampleinfo <- data.frame(
-
-sample=colnames(ctg1to9), 
-                         
-sex=c(rep("M", 8), rep(c("F", "F", "M", "M"), 2), rep("M", 8), rep("F", 28), rep("M", 8), rep("F", 16), rep("M", 4), rep("F", 28)), 
-
-age=c(rep("O",8), rep(c("Y","O","Y","O"),2),rep("O",8),  rep(c("O", "O", "Y", "Y", "O", "O", "Y", "Y","Y", "Y", "O", "O"), 2), c("Y", "Y", "O", "O", "Y", "Y", "O", "O", "O", "O", "O", "O", rep("O", 12)), c("Y", "Y", "O", "O", "Y", "Y", "O", "O", "N", "N", "N", "N"), rep("O", 11), c("N", "O", "O",  "N", "N", "N", "N", "O", "O", "O", "O", "O", "O")), 
-
-reg=c(rep("",24), rep(c(rep("", 4), rep("R", 4), rep("", 4)), 2), c(rep("", 12), rep(c("", "", "R"),4 )   ), c(rep("", 12), rep(c("", "", "R"),3 )   ), rep("",11 ), "R", "", "", "R") , 
-
-ctg=c(rep(1, 12), rep(2, 12),rep(3, 12), rep(4, 12), rep(5, 12), rep(6, 12), rep(7, 12), rep(8, 12), rep(9, 12)),
-
-size= c(rep("P",6), "I", "I", rep("P",8),rep("I",4), rep("I",4), rep("P", 32), rep("I", 4), rep("P",27), rep("I", 8), "P", rep("I", 4), rep("I", 8)), 
-
-moult = c(rep("", 80), 0,0,10,20,rep("", 11),20,"","", 0,10,"", 20,rep("", 6) ),
-
- exp= c(rep("conc",8), rep("OvY", 12), rep("cut", 4), rep("OvY",4), rep("regen", 4), rep("OvY",8), rep("regen", 4), rep("OvY",4), rep("OvY", 12), rep("regen", 12), rep("OvY", 8), rep("moult", 4),rep("regen", 9), "OvY", "OvY", "moult",  "OvY", "OvY", "moult", "moult", "moult", "moult", rep("regen", 6) ), 
-
-prep = c(rep("Luke", 24), rep("Nikos", 8), rep("Luke", 4), rep("Nikos", 8), rep("Luke", 4), rep("Luke", 60))
-
+  
+  sample=colnames(ctg1to9), 
+  
+  sex=c(rep("M", 8), rep(c("F", "F", "M", "M"), 2), rep("M", 8), rep("F", 28), rep("M", 8), rep("F", 16), rep("M", 4), rep("F", 28)), 
+  
+  age=c(rep("O",8), rep(c("Y","O","Y","O"),2),rep("O",8),  rep(c("O", "O", "Y", "Y", "O", "O", "Y", "Y","Y", "Y", "O", "O"), 2), c("Y", "Y", "O", "O", "Y", "Y", "O", "O", "O", "O", "O", "O", rep("O", 12)), c("Y", "Y", "O", "O", "Y", "Y", "O", "O", "N", "N", "N", "N"), rep("O", 11), c("N", "O", "O",  "N", "N", "N", "N", "O", "O", "O", "O", "O", "O")), 
+  
+  reg=c(rep("",24), rep(c(rep("", 4), rep("R", 4), rep("", 4)), 2), c(rep("", 12), rep(c("", "", "R"),4 )   ), c(rep("", 12), rep(c("", "", "R"),3 )   ), rep("",11 ), "R", "", "", "R") , 
+  
+  ctg=c(rep(1, 12), rep(2, 12),rep(3, 12), rep(4, 12), rep(5, 12), rep(6, 12), rep(7, 12), rep(8, 12), rep(9, 12)),
+  
+  size= c(rep("P",6), "I", "I", rep("P",8),rep("I",4), rep("I",4), rep("P", 32), rep("I", 4), rep("P",27), rep("I", 8), "P", rep("I", 4), rep("I", 8)), 
+  
+  moult = c(rep("", 80), 0,0,10,20,rep("", 11),20,"","", 0,10,"", 20,rep("", 6) ),
+  
+  exp= c(rep("conc",8), rep("OvY", 12), rep("cut", 4), rep("OvY",4), rep("regen", 4), rep("OvY",8), rep("regen", 4), rep("OvY",4), rep("OvY", 12), rep("regen", 12), rep("OvY", 8), rep("moult", 4),rep("regen", 9), "OvY", "OvY", "moult",  "OvY", "OvY", "moult", "moult", "moult", "moult", rep("regen", 6) ), 
+  
+  prep = c(rep("Luke", 24), rep("Nikos", 8), rep("Luke", 4), rep("Nikos", 8), rep("Luke", 4), rep("Luke", 60))
+  
 )
 
 
@@ -195,13 +183,11 @@ sampleinfo$qual[c(25 , 31 , 32 , 49,  54 , 67  ,76,  90, 101, 104, 107)] <- "bad
 #print("Samples as follows (all experiments)")
 #print(paste("males: " sum()))
 
-```
 
 
 #Housekeeping genes 
 
 
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 
 ctg1and2.whk <- NanoStringNorm(x = ct1and2.raw, anno = NA, CodeCount ='sum', Background ="mean", SampleContent ='housekeeping.sum', round.values = FALSE, take.log = FALSE,return.matrix.of.endogenous.probes = FALSE);
 ctg1and2.whk.norm <- ctg1and2.whk$normalized.data
@@ -248,20 +234,15 @@ hk.norm <- subset(ctg1to9.whk.norm, ctg1to9.whk.norm[,1] == "Housekeeping")
 
 hk.raw <- subset(ctg1to9.whk.raw, ctg1to9.whk.raw[,1] == "Housekeeping")
 
-```
 
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 geneinf <- data.frame(name=codeset$Customer_Identifier,transl2fc=codeset$log2FoldChange,  dir = ifelse(codeset$log2FoldChange> 0, "downregulated with age", "upregulated with age"))
 
 geneinf$in61 <- geneinf$name %in% gm$marker[gm$dir != "housekeeping"]
 
 
 
-```
 ##Saving
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 save(sampleinfo,ctg1to9,ctg1to9intonly,ctg1to9un, codeset,geneinf, hk.norm, hk.raw, file="nov17main_data.rdata")
 
-```
+
 

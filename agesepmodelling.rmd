@@ -1,0 +1,101 @@
+---
+title: "Models to classify old vs young"
+author: "Luke Hayden"
+output: html_document
+---
+
+#Setup
+###Packages
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("DESeq2")
+#source("https://bioconductor.org/biocLite.R")
+#biocLite("DESeq2")
+
+library(ggplot2)
+library(rmarkdown)
+library(gplots)
+library(RColorBrewer)
+library(scales)
+library(ggbiplot)
+library(devtools)
+library(gtools)
+library(Rmisc)
+library(dplyr)
+library(tidyr)
+library(caret)
+library(e1071)
+library(caTools)
+library(FinCal)
+
+```
+
+###Data Import
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
+setwd("~/Documents/nstringnov17")
+load(file="nov17main_data.rdata")
+load(file="markerchoiceinfo.rdata")
+```
+
+
+
+#Logistic regression model to separate old from young
+
+First: use all markers as predictors of status in old vs young
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+dmat<- as.data.frame(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
+
+
+dmat$age <- rownames(dmat) %in% colnames(young)
+
+#logmod <- glm(age~., dmat, family='binomial')
+logmod <- lm(age~., dmat,method="binomial" )
+
+pred <- predict(logmod, type='response')
+
+predclass <- ifelse(pred> 0.5, T, F)
+
+confusionMatrix(predclass, dmat$age)
+
+colAUC(pred, dmat$age, plotROC=T)
+
+
+modcoefs <- data.frame(logmodcoef=coef(logmod), name=names(coef(logmod)))
+
+
+minf2 <- left_join(minf, modcoefs, by="name")
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+dmat$age <- ifelse(rownames(dmat) %in% colnames(young), "young", "old")
+
+myControl <- trainControl(
+  method = "cv",
+  number = 4,
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE, # IMPORTANT!
+  verboseIter = TRUE
+)
+
+logmodcv <- train(age~.,dmat,method='glm', trControl=myControl )
+
+#ggplot( cbind(dmat, pred), aes(x=age, y=pred))+geom_boxplot()
+
+predcv <- predict(logmodcv)
+
+
+
+
+modcoefs <- data.frame(logmodcoef=coef(logmodcv$finalModel), name=names(coef(logmodcv$finalModel)))
+
+
+minf2 <- left_join(minf, modcoefs, by="name")
+
+```
+
