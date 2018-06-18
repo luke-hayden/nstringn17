@@ -1,5 +1,5 @@
 ---
-title: "Reliable rejuvenation signal?"
+title: "Identifying best age markers"
 author: "Luke Hayden"
 output: html_document
 ---
@@ -20,15 +20,11 @@ library(reshape2)
 library(scales)
 library(ggbiplot)
 library(devtools)
-library(NanoStringNorm)
 library(gtools)
 library(Rmisc)
 library(dplyr)
 library(tidyr)
-library(caret)
-library(e1071)
-library(caTools)
-library(FinCal)
+
 
 ```
 
@@ -75,11 +71,11 @@ nmd$ROvOl2fc <- foldchange2logratio(foldchange(rowMeans(regen), rowMeans(old)))
 nmd$chosen <- nmd$p_value < 0.05 & sign(nmd$transl2fc) == sign(nmd$YvOl2fc)
 
 
-ggplot(nmd, aes(y=p_value, x=abs(YvOl2fc), colour=in61,shape=in61,  fill=chosen))  +
+p=ggplot(nmd, aes(y=p_value, x=YvOl2fc, fill=chosen))  +
   scale_shape_manual(values=c(21,22))+
-  geom_point()+ 
-  theme_minimal()+
-  scale_fill_manual(values=c("cornflower blue", "forestgreen"), name="Amongst new chosen set") +
+  geom_point(shape=21, colour="black")+ 
+  theme_bw()+
+  scale_fill_manual(values=c("darkgrey", "orange"), name="",breaks=c(T,F), labels=c("chosen markers", "other")) +
   scale_colour_manual(values=c("red3", "black"))+
   xlab("Absolute Young vs Old Log2Foldchange") +
   ylab("Old vs young p-value")+
@@ -87,7 +83,7 @@ ggplot(nmd, aes(y=p_value, x=abs(YvOl2fc), colour=in61,shape=in61,  fill=chosen)
     geom_hline(linetype=2, yintercept = 0.05)
   
 
-
+ggsave(plot=p, filename="whichmark.pdf", device="pdf", height=2.5, width=8)
 
 ```
 
@@ -134,6 +130,7 @@ ggplot(mnmd, aes(x= sname, y=normexp, colour=age)) +
   guides(alpha=F)+
   xlab("Marker") +
   ylab("Normalised Expression")
+
 
 
 ```
@@ -204,6 +201,27 @@ c=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE,
 multiplot(a,c,b, cols=2)
 
 
+a
+
+
+
+
+bcmin <- ctg1to9[,log== TRUE]
+bcmin.groups <- subset(sampleinfo$type, log==TRUE)
+bcmin <- subset(bcmin, rownames(bcmin) %in% nmd$name[nmd$chosen==TRUE])
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = T, circle = TRUE, var.axes=FALSE, groups=bc.groups)+
+  ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ," newly chosen markers"))+
+    theme_bw() +
+  scale_colour_manual(values=c("cornflower blue", "red3", "black"), labels=c("Old", "Young"), name="Age")+
+  theme(plot.title=element_text(size=8,face="bold"))
+
+
+
 ```
 
 Without Nikos' samples:
@@ -240,6 +258,18 @@ b=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE,
     theme_minimal() +
   scale_colour_manual(values=c("cornflower blue", "red3", "black"))+
   theme(plot.title=element_text(size=8,face="bold"))
+
+
+p=ggbiplot(bc.pca, obs.scale = 1, var.scale = 0.5, ellipse = F, circle = F,varname.size = 0,var.axes=T, groups=bc.groups)+
+  ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ," chosen markers"))+
+    theme_bw() +
+  geom_point(shape=21, size=5, aes(fill=groups))+
+  scale_fill_manual(values=c("cornflower blue", "red3", "black"), labels=c("Old", "Young"), name="Age")+
+  theme(plot.title=element_text(size=8,face="bold"))
+
+
+ggsave(plot=p, filename="pca50.pdf", device="pdf", height=3, width=6)
+
 
 
 
@@ -288,62 +318,14 @@ ggplot(data=nmd, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=chosen))+
 
 ```
 
-#Logistic regression model to separate old from young
-
-First: use all markers as predictors of status in old vs young
-
+#Output marker info
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+minf$chosenand <- minf$in61 &minf$chosen
 
-dmat<- as.data.frame(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"& sampleinfo$exp == "OvY" & sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y")& sampleinfo$size== "P" ))
-
-
-dmat$age <- rownames(dmat) %in% colnames(young)
-
-#logmod <- glm(age~., dmat, family='binomial')
-logmod <- lm(age~., dmat,method="binomial" )
-
-pred <- predict(logmod, type='response')
-
-predclass <- ifelse(pred> 0.5, T, F)
-
-confusionMatrix(predclass, dmat$age)
-
-colAUC(pred, dmat$age, plotROC=T)
+save(minf ,file="markerchoiceinfo.rdata")
 
 
-modcoefs <- data.frame(logmodcoef=coef(logmod), name=names(coef(logmod)))
 
 
-minf2 <- left_join(minf, modcoefs, by="name")
 
 ```
-
-
-```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
-
-dmat$age <- ifelse(rownames(dmat) %in% colnames(young), "young", "old")
-
-myControl <- trainControl(
-  method = "cv",
-  number = 4,
-  summaryFunction = twoClassSummary,
-  classProbs = TRUE, # IMPORTANT!
-  verboseIter = TRUE
-)
-
-logmodcv <- train(age~.,dmat,method='glm', trControl=myControl )
-
-#ggplot( cbind(dmat, pred), aes(x=age, y=pred))+geom_boxplot()
-
-predcv <- predict(logmodcv)
-
-
-
-
-modcoefs <- data.frame(logmodcoef=coef(logmodcv$finalModel), name=names(coef(logmodcv$finalModel)))
-
-
-minf2 <- left_join(minf, modcoefs, by="name")
-
-```
-

@@ -38,6 +38,9 @@ library(FinCal)
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE, results="hide"}
 setwd("~/Documents/nstringnov17")
 load(file="nov17main_data.rdata")
+load(file="markerchoiceinfo.rdata")
+
+
 ```
 
 #Nikos plot
@@ -72,14 +75,14 @@ t.test(x[1:ncol(old)],x[ncol(old)+1:ncol(oreg)]))
 vardat$ovreg.pval <- unlist(lapply(t.result, function(x) x$p.value))
 vardat$ovregsig <- vardat$ovreg.pval <0.1
 
-ggplot(data=vardat, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=chosen))+
+ggplot(data=vardat, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, colour=chosenand))+
   geom_point()+
   geom_hline(yintercept=0, colour="black")+
   geom_vline(xintercept=0, colour="black")+
   theme_bw()+
   xlim(-6,+6)+
   ylim(-6,6)+
-  scale_colour_manual(values= c("grey", "forest green"), name="Marker", labels=c("other","chosen"))+
+  scale_colour_manual(values= c("grey", "forest green"), name="Marker", labels=c("other","chosen 50"))+
   xlab("Young vs Old Log2 Fold Change") +
   ylab("Regenerated vs Old Log2 Fold Change")
 
@@ -101,7 +104,7 @@ ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regencv, shape
   xlab("Young vs Old Log2 Fold Change") +
   ylab("Regenerated vs Old Log2 Fold Change")+
   scale_shape_manual(values=c(21,23), labels=c(">0.1", "<0.1"), breaks=c(FALSE, TRUE) ,name="RO vs O p-value" )+
-  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.6, name="cv (regen)")+
+  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.9, name="cv (regen)")+
   geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)
 
 
@@ -216,8 +219,8 @@ ROvOpairfolds2 <-  left_join(ROvOpairfolds2,
 
 
 ggplot(data=ROvOpairfolds2, aes(x= `pairwise ROvOl2fc`, y=meanYvOlfc))+
-         geom_point()+
-  geom_point(data=YvOpairfolds2, aes(y= `pairwise YvOl2fc`, x=meanROvOlfc))
+         geom_point(alpha=0.01, size=3)+
+  geom_point(alpha=0.01, size=3, data=YvOpairfolds2, aes(y= `pairwise YvOl2fc`, x=meanROvOlfc))
 
 ```
 

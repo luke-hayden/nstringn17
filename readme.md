@@ -27,6 +27,11 @@ devtools
 NanoStringNorm
 gtools
 knitr
+dplyr
+tidyr
+e1071
+caTools
+FinCal
 
 Exact prerequisites depend on script in question. 
 
@@ -35,17 +40,19 @@ Exact prerequisites depend on script in question.
 The following functions are carried out by the following scripts:
 All analyses are carried out in notebooks (Rmarkdown format), with visualisation & graphics within
 
-import.rmd: import and normalisation of raw data (produces .rdata files which other scripts depend on)
+import.r: import and normalisation of raw data (produces .rdata files which other scripts depend on)
 markeropt.rmd: optimise marker set
+agesepmodelling.rmd: machine learning approaches to classify samples as young or old
 qual.rmd: examine sample quality
 normal.rmd: compare normalisation methods
+rejuvnhyper.rmd: examine effect of regen on markers
 labmeeting18-2-7: produces .pdf report
 nstringnov17main.rmd: initial analyses
 
 .html files (produced via knitr) corresponding to the .rmd files are available (reports)
 
 
-All raw data is held in folders with .rcc files 
+All raw data is held in folders with .rcc files (not in repo)
 
 
 ## Samples
