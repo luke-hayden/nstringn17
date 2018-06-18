@@ -329,3 +329,85 @@ save(minf ,file="markerchoiceinfo.rdata")
 
 
 ```
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"&  sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y", "OR")& sampleinfo$size== "P" ))
+
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+
+nmd <- as.data.frame(md/rowMeans(md))
+
+nmd$name <- rownames(nmd)
+nmd <- left_join(nmd, minf, by="name")
+
+nmd$sname <- factor(nmd$sname, levels=nmd$sname[order(nmd$p_value)])
+
+mnmd <- gather(nmd, key=sample, value=normexp, O2a:Ereg)
+mnmd <- left_join(mnmd, sampleinfo, by="sample")
+
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+gmnmd <- subset(mnmd, mnmd$chosenand == T & mnmd$reg == "")
+
+
+ggplot(gmnmd, aes(x= sname, y=normexp, colour=type)) +
+  theme_bw()+
+  geom_point(size=2)+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "red3"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=6))+
+  xlab("Marker") +
+  ylab("Normalised Expression")
+
+
+ggplot(gmnmd, aes(x= sname, y=normexp, fill=type)) +
+  theme_bw()+
+  geom_boxplot(outlier.shape=NA)+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_fill_manual(values=c("cornflower blue", "red3"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=8))+
+  xlab("Marker") +
+  ylab("Normalised Expression")
+
+```
+
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+gmnmd <- subset(mnmd, mnmd$chosenand == T)
+
+
+ggplot(gmnmd, aes(x= sname, y=normexp, colour=type)) +
+  theme_bw()+
+  geom_point(size=2)+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=6))+
+  xlab("Marker") +
+  ylab("Normalised Expression")
+
+
+```
+
+
+
+
+
+
+

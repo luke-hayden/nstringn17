@@ -247,13 +247,13 @@ cv between regenerated <0.5
 ```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
 vardat$rejuv <- "other"
 
-cvthresh<- 0.4
+cvthresh<- 0.5
 
 
-vardat$rejuv[vardat$chosen== TRUE & vardat$regencv < cvthresh & vardat$ROvOl2fc/vardat$YvOl2fc > 0.6] <- "rejuvenated"
+vardat$rejuv[vardat$chosen== TRUE & vardat$regencv < cvthresh & vardat$ROvOl2fc/vardat$YvOl2fc > 0.8] <- "rejuvenated"
+cvthresh<- 1
 
-
-vardat$rejuv[vardat$chosen== TRUE & vardat$regencv < cvthresh & vardat$ROvOl2fc/vardat$YvOl2fc < -0.6] <- "aged"
+vardat$rejuv[vardat$chosen== TRUE & vardat$regencv < cvthresh & vardat$ROvOl2fc/vardat$YvOl2fc < -0.8] <- "aged"
 
 
 vardat2 <- subset(vardat, vardat$chosen ==TRUE)
@@ -281,7 +281,7 @@ md <- inner_join(md, vardat2, by="name") %>%
   gather(key="sample", value="normexp", 1:sum(ncol(old), ncol(young), ncol(regen))) %>%
   left_join(sampleinfo, by="sample")%>%  inner_join(codeset, by=c("name" = "Customer_Identifier"))
 
-ggplot(data=subset(md, md$rejuv != "other"), aes(x=sname, y=normexp, fill=type, colour=type))+
+ggplot(data=subset(md), aes(x=sname, y=normexp, fill=type, colour=type))+
 #  geom_point(shape=95)+
   geom_violin(outlier.shape = NA)+
   geom_hline(yintercept=1, linetype=2)+
@@ -296,8 +296,22 @@ ggplot(data=subset(md, md$rejuv != "other"), aes(x=sname, y=normexp, fill=type, 
   ylab("Expression level (normalised)")
 
 
+ggplot(data=subset(md), aes(x=sname, y=normexp, fill=type, colour=type))+
+ geom_point()+
 
-ggplot(data=subset(md, md$rejuv != "other"), aes(x=sname, y=normexp, fill=type, colour=type))+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+  facet_grid(~rejuv, space="free", scale="free")+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"))+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_minimal()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+
+
+ggplot(data=subset(md), aes(x=sname, y=normexp, fill=type, colour=type))+
 #  geom_point(shape=95)+
 #  geom_violin(outlier.shape = NA)+
   geom_hline(yintercept=1, linetype=2)+
@@ -310,6 +324,146 @@ ggplot(data=subset(md, md$rejuv != "other"), aes(x=sname, y=normexp, fill=type, 
   theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
   xlab("Marker")+
   ylab("Expression level (normalised)")
+vardat2 <- subset(vardat, vardat$chosen ==TRUE)
+
+ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regencv, shape=rejuv))+
+  geom_point(size=3)+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_minimal()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(21,22,23))+
+  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.9, name="cv (regen)")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+facet_wrap(~rejuv, ncol=1)
+
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+vardat$rejuv <- "other"
+
+cvthresh<- 0.4
+
+
+vardat$rejuv[vardat$chosen== TRUE & vardat$regencv > cvthresh & vardat$ROvOl2fc/vardat$YvOl2fc > 0.8] <- "rejuvenated"
+
+vardat$rejuv[vardat$chosen== TRUE & vardat$regencv > cvthresh & vardat$ROvOl2fc/vardat$YvOl2fc < -0.0] <- "aged"
+
+
+vardat2 <- subset(vardat, vardat$chosen ==TRUE)
+ggplot(data=subset(vardat2, vardat2$rejuv!= "other") , aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regencv,  colour=rejuv, label=sname))+
+  geom_point(size=3, shape=21)+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(21,23), labels=c(">0.1", "<0.1"), breaks=c(FALSE, TRUE) ,name="RO vs O p-value" )+
+  scale_fill_gradient(high="red3", low="white", name="Coefficient of \nVariation")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+  scale_colour_manual(values=c("dark blue", "forest green" ), name="Response to \nRegeneration")+geom_label()
+
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+md <- ctg1to9[,colnames(ctg1to9) %in% c(colnames(old), colnames(young), colnames(regen))]
+md <- data.frame(md/rowMeans(md)) 
+md$name <- rownames(md)
+md <- inner_join(md, vardat2, by="name") %>% 
+  gather(key="sample", value="normexp", 1:sum(ncol(old), ncol(young), ncol(regen))) %>%
+  left_join(sampleinfo, by="sample")%>%  inner_join(codeset, by=c("name" = "Customer_Identifier"))
+
+ggplot(data=subset(md, md$chosenand==T &md$rejuv != "other"), aes(x=sname, y=normexp, colour=type))+
+#  geom_point(shape=95)+
+  geom_point()+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+  facet_grid(~rejuv, space="free", scale="free")+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"))+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_minimal()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+
+
+ggplot(data=subset(md, md$chosenand==T &md$rejuv != "other"), aes(x=sname, y=normexp, colour=type))+
+#  geom_point()+
+  geom_boxplot()+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+  facet_grid(~rejuv+dir, space="free", scale="free")+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"))+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_bw()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+
+
+
+
+ggplot(data=subset(md, md$chosenand==T &md$rejuv != "other"), aes(x=sname, y=normexp, fill=type))+
+#  geom_point()+
+  geom_boxplot(outlier.shape=NA)+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+  facet_grid(~rejuv+dir, space="free", scale="free")+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"), name="Sample type", labels=c("Old","Old \nregenerated", "Young"))+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_bw()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+
+
+```
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+ggplot(data=subset(md, md$chosenand==T &md$rejuv != "other"), aes(x=sname, y=normexp, fill=type, colour=type))+
+#  geom_point(shape=95)+
+#  geom_violin(outlier.shape = NA)+
+  geom_hline(yintercept=1, linetype=2)+
+  stat_summary()+
+  facet_grid(~rejuv, space="free", scale="free")+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"))+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme_bw()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+vardat2 <- subset(vardat, vardat$chosen ==TRUE)
+
+ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regencv, shape=rejuv))+
+  geom_point(size=3)+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_minimal()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(21,22,23))+
+  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.9, name="cv (regen)")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+facet_wrap(~rejuv, ncol=1)
 
 
 ```
