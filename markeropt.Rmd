@@ -248,7 +248,7 @@ a=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE,
 
 bcmin <- ctg1to9[,log== TRUE]
 bcmin.groups <- subset(sampleinfo$type, log==TRUE)
-bcmin <- subset(bcmin, rownames(bcmin) %in% nmd$name[nmd$chosen==TRUE])
+bcmin <- subset(bcmin, rownames(bcmin) %in% nmd$name[nmd$chosenand==TRUE])
 tbc <- t(bcmin)
 tbc <- tbc[,colSums(tbc) > 0]
 bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
@@ -260,13 +260,15 @@ b=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE,
   theme(plot.title=element_text(size=8,face="bold"))
 
 
-p=ggbiplot(bc.pca, obs.scale = 1, var.scale = 0.5, ellipse = F, circle = F,varname.size = 0,var.axes=T, groups=bc.groups)+
+(p=ggbiplot(bc.pca, obs.scale = 1, var.scale = 0.5, ellipse = F, circle = F,varname.size = 0,var.axes=F)+
   ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ," chosen markers"))+
     theme_bw() +
-  geom_point(shape=21, size=5, aes(fill=groups))+
+  geom_point(size=5,shape=21, aes(fill=bc.groups))+
   scale_fill_manual(values=c("cornflower blue", "red3", "black"), labels=c("Old", "Young"), name="Age")+
-  theme(plot.title=element_text(size=8,face="bold"))
-
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(plot.title=element_text(size=8,face="bold"), axis.title=element_text(size=6), 
+ axis.text=element_text(size=6)       )
+)
 
 ggsave(plot=p, filename="pca50.pdf", device="pdf", height=3, width=6)
 
@@ -289,6 +291,70 @@ c=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE,
   theme(plot.title=element_text(size=8,face="bold"))
 
 multiplot(a,c,b, cols=2)
+
+```
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+log <- sampleinfo$sex =="F" & sampleinfo$ctg %in% c(3,4,5,7) & sampleinfo$qual == "ok" & sampleinfo$reg == "" & sampleinfo$age != "N" &sampleinfo$prep == "Luke"
+
+bcmin <- ctg1to9[,log== TRUE]
+bcmin.groups <- subset(sampleinfo$type, log==TRUE)
+bcmin <- subset(bcmin, rownames(bcmin) %in% nmd$name[nmd$chosenand==TRUE])
+tbc <- t(bcmin)
+tbc <- tbc[,colSums(tbc) > 0]
+bc.pca <- prcomp(tbc,center = TRUE,scale. = TRUE) 
+bc.groups <- bcmin.groups
+
+(p=ggbiplot(bc.pca, obs.scale = 1, var.scale = 1, ellipse = F, circle = TRUE, var.axes=FALSE, groups=bc.groups)+
+  ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ," newly chosen markers"))+
+    theme_bw() +
+  scale_colour_manual(values=c("cornflower blue", "red3"), labels=c("Old", "Young"), name="Age")+
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  geom_point(size=5, aes(colour=bc.groups))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+    
+)
+
+
+ggsave(plot=p, filename = "ovyPCA50.png", device="png", height=7, width = 9,bg = "transparent")
+
+
+
+log <- sampleinfo$type== "OR" &sampleinfo$prep == "Luke"
+
+rg <-ctg1to9[,log== TRUE]
+rg <- subset(rg, rownames(rg) %in% nmd$name[nmd$chosenand==TRUE])
+
+
+
+
+rg.groups <- sampleinfo$type[sampleinfo$sample %in% colnames(rg)]
+
+rg.sc <- scale(t(rg), center= bc.pca$center)
+rg.pred <- rg.sc %*% bc.pca$rotation 
+
+
+rgd.pca <- bc.pca
+rgd.pca$x <- rbind(bc.pca$x, rg.pred)
+                   
+                   
+rgd.groups <- append(bcmin.groups, rg.groups)                
+
+(p=ggbiplot(rgd.pca, obs.scale = 1, var.scale = 1, ellipse = FALSE, circle = TRUE, var.axes=FALSE, groups=rgd.groups)+   
+    ggtitle(paste("PCA of Old vs Young (females):", nrow(bcmin) ," newly chosen markers"))+
+    theme_bw() +
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3", "black"), labels=c("Old","Old \n Regenerated", "Young"), name="Age")+
+  geom_point(size=5, aes(colour=rgd.groups))+
+  theme(plot.title=element_text(size=8,face="bold"))+
+  theme(panel.grid.major = element_blank(), panel.grid.minor = element_blank())+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+)
+
+
+ggsave(plot=p, filename = "ovyRegPCA50.png", device="png", height=7, width = 9,bg = "transparent")
 
 
 ```
@@ -349,6 +415,25 @@ mnmd <- gather(nmd, key=sample, value=normexp, O2a:Ereg)
 mnmd <- left_join(mnmd, sampleinfo, by="sample")
 
 
+
+md <- t(subset(t(ctg1to9), sampleinfo$sex == "F"& sampleinfo$qual == "ok"&  sampleinfo$ctg>2& sampleinfo$type %in% c("O", "Y", "OR")& sampleinfo$size== "P" ))
+
+si <- subset(sampleinfo, sampleinfo$sample %in% colnames(md))
+
+nmd <- as.data.frame(md/rowMeans(md))
+
+nmd$name <- rownames(nmd)
+nmd <- left_join(nmd, minf, by="name")
+
+nmd$sname <- factor(nmd$sname, levels=nmd$sname[order(nmd$p_value)])
+
+mnmd <- gather(nmd, key=sample, value=normexp, O2a:Ereg)
+mnmd <- left_join(mnmd, sampleinfo, by="sample")
+
+md <- subset(md, md$type != "O")
+
+
+
 ```
 
 
@@ -358,30 +443,88 @@ mnmd <- left_join(mnmd, sampleinfo, by="sample")
 gmnmd <- subset(mnmd, mnmd$chosenand == T & mnmd$reg == "")
 
 
-ggplot(gmnmd, aes(x= sname, y=normexp, colour=type)) +
+(p=ggplot(gmnmd, aes(x= sname, y=normexp, colour=type)) +
   theme_bw()+
-  geom_point(size=2)+
-  scale_y_continuous(trans="log2")+
+  geom_point(size=6, alpha=0.3)+
+  scale_y_continuous(trans='log2', breaks=c(0,0.25,0.5,1,2,4,8), limits=c(0.05,16))+
   facet_grid(~dir, space="free",scales="free" )+
 #  geom_boxplot(outlier.shape = NA)+
-  scale_colour_manual(values=c("cornflower blue", "red3"))+
-  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=6))+
-  xlab("Marker") +
-  ylab("Normalised Expression")
-
-
-ggplot(gmnmd, aes(x= sname, y=normexp, fill=type)) +
-  theme_bw()+
-  geom_boxplot(outlier.shape=NA)+
-  scale_y_continuous(trans="log2")+
-  facet_grid(~dir, space="free",scales="free" )+
-#  geom_boxplot(outlier.shape = NA)+
-  scale_fill_manual(values=c("cornflower blue", "red3"))+
+  scale_colour_manual(values=c("cornflower blue", "red3"), name="Sample type       ", labels= c("Old", "Young"))+
   theme(axis.text.x = element_text(angle = 60, hjust = 1, size=8))+
   xlab("Marker") +
-  ylab("Normalised Expression")
+  ylab("Normalised Expression")+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") ))
+
+ggsave(plot=p, filename = "ovybymarkerpoint.png", device="png", height=7, width = 11,bg = "transparent")
+
+
+
+
+(p= ggplot(gmnmd, aes(x= sname, y=normexp, fill=type)) +
+  theme_bw()+
+  geom_boxplot(outlier.shape=NA)+
+  scale_y_continuous(trans='log2', breaks=c(0,0.25,0.5,1,2,4,8))+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_fill_manual(values=c("cornflower blue", "red3"), name="Sample type", labels= c("Old", "Young"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=8))+
+  xlab("Marker") +
+  ylab("Normalised Expression")+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+)
+
+
+ggsave(plot=p, filename = "ovybymarkerbox.png", device="png", height=7, width = 11,bg = "transparent")
+
+
 
 ```
+
+
+
+
+```{r, echo=FALSE, warning=FALSE, error=FALSE, message=FALSE}
+
+gmnmd <- subset(mnmd, mnmd$chosenand == T)
+
+
+(p=ggplot(gmnmd, aes(x= sname, y=normexp, colour=type)) +
+  theme_bw()+
+  geom_point(size=6, alpha=0.3)+
+  scale_y_continuous(trans='log2', breaks=c(0,0.25,0.5,1,2,4,8), limits=c(0.05,16))+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "forest green" , "red3"), name="Sample type       ", labels= c("Old", "Old \n Regenerated", "Young"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=8))+
+  xlab("Marker") +
+  ylab("Normalised Expression")+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") ))
+
+ggsave(plot=p, filename = "ovyRegbymarkerpoint.png", device="png", height=7, width = 11,bg = "transparent")
+
+
+
+
+(p= ggplot(gmnmd, aes(x= sname, y=normexp, fill=type)) +
+  theme_bw()+
+  geom_boxplot(outlier.shape=NA)+
+  scale_y_continuous(trans='log2', breaks=c(0,0.25,0.5,1,2,4,8))+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_fill_manual(values=c("cornflower blue", "forest green" , "red3"), name="Sample type", labels= c("Old", "Old \n Regenerated", "Young"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=8))+
+  xlab("Marker") +
+  ylab("Normalised Expression")+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent") )
+)
+
+
+ggsave(plot=p, filename = "ovyRegbymarkerbox.png", device="png", height=7, width = 11,bg = "transparent")
+
+
+
+```
+
 
 
 
@@ -403,9 +546,21 @@ ggplot(gmnmd, aes(x= sname, y=normexp, colour=type)) +
   ylab("Normalised Expression")
 
 
+ggplot(gmnmd, aes(x= sname, y=normexp, colour=type)) +
+  theme_bw()+
+  geom_point(size=2)+
+  scale_y_continuous(trans="log2")+
+  facet_grid(~dir, space="free",scales="free" )+
+#  geom_boxplot(outlier.shape = NA)+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=6))+
+  xlab("Marker") +
+  ylab("Normalised Expression")
+
+
+
+
 ```
-
-
 
 
 

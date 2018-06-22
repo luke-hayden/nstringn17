@@ -258,7 +258,7 @@ vardat$rejuv[vardat$chosen== TRUE & vardat$regencv > cvthresh & vardat$ROvOl2fc/
 
 
 
-vardat2 <- subset(vardat, vardat$chosen ==TRUE)
+vardat2 <- subset(vardat, vardat$chosenand ==TRUE)
 
 
 (p= ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=regencv, shape=rejuv, colour=rejuv))+
@@ -281,9 +281,9 @@ vardat2 <- subset(vardat, vardat$chosen ==TRUE)
 ggsave(plot=p, filename="nikcol.pdf", height=4, width=6)
 
 
-(p= ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=rejuv, alpha=regencv))+
+(p= ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=rejuv))+
   scale_alpha_continuous(range = c(0.2,1), name="Coefficient \nof variation \n(regenerated)")+
-  geom_point(size=3, shape=21)+
+  geom_point(size=3, shape=21, alpha=0.5)+
   geom_hline(yintercept=0, colour="black")+
   geom_vline(xintercept=0, colour="black")+
   theme_bw()+
@@ -301,6 +301,97 @@ ggsave(plot=p, filename="nikcol.pdf", height=4, width=6)
 
 ggsave(plot=p, filename="niksimp.pdf", height=4, width=6)
 
+
+
+(p= ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=rejuv))+
+  geom_point(size=3, shape=21, alpha=0.5)+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(22,21,23))+
+#  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.6, name="cv (regen)")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+#  guides(fill=F)+
+  scale_fill_manual(values=c("violet","black", "blue" ), name="Response to \nRegeneration", guide=F)+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent"), legend.position = 'none')
+    
+)
+
+
+ggsave(plot=p, filename = "nik.png", device="png", height=7, width = 9,bg = "transparent")
+
+
+
+
+
+(p= ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=rejuv))+
+  geom_point(size=3, shape=21, alpha=0.0)+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(22,21,23))+
+#  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.6, name="cv (regen)")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+#  guides(fill=F)+
+  scale_fill_manual(values=c("violet","black", "blue" ), name="            ", labels=c("", "", ""))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent"), legend.position = 'none' )
+    
+)
+
+
+ggsave(plot=p, filename = "nikblank.png", device="png", height=7, width = 9,bg = "transparent")
+
+
+
+
+(p= ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname))+
+  geom_point(size=3, shape=21, alpha=0.5, fill="grey")+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(22,21,23))+
+#  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.6, name="cv (regen)")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+#  guides(fill=F)+
+  scale_fill_manual(values=c("grey", "grey", "grey" ), name="Response to \nRegeneration")+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent"), legend.position = 'none' )
+    
+)
+
+
+
+(p= ggplot(data=vardat2, aes(x=YvOl2fc, y=ROvOl2fc, label=sname, fill=rejuv))+
+  geom_point(size=3, shape=21, alpha=0.5)+
+  geom_hline(yintercept=0, colour="black")+
+  geom_vline(xintercept=0, colour="black")+
+  theme_bw()+
+  xlim(-6,+6)+
+  ylim(-6,6)+
+  xlab("Young vs Old Log2 Fold Change") +
+  ylab("Regenerated vs Old Log2 Fold Change")+
+  scale_shape_manual(values=c(22,21,23))+
+#  scale_fill_gradient2(high="red3", mid="white", low="blue", midpoint=0.6, name="cv (regen)")+
+  geom_abline(inherit.aes=FALSE, intercept=0, slope=1, linetype=2)+
+#  guides(fill=F)+
+  scale_fill_manual(values=c("grey", "grey", "grey"), name="            ", labels=c("", "", ""))+
+  theme(    plot.background = element_rect(fill = "transparent",colour = "transparent"), legend.position = 'none' )
+    
+)
+
+
+ggsave(plot=p, filename = "nikgreyp.png", device="png", height=7, width = 9,bg = "transparent")
 
 
 ```
@@ -322,7 +413,7 @@ smd <- subset(md, md$sample == "O2a")
 smd$regcvs <- round(smd$regencv, 2)
 
 
-(p=ggplot(data=subset(md, md$rejuv != "other"), aes(x=snamer, y=normexp, colour=rejuv, fill=type))+
+(p=ggplot(data=subset(md, md$rejuv != "no clear \nresponse"), aes(x=snamer, y=normexp, colour=rejuv, fill=type))+
   geom_boxplot(outlier.shape = NA, colour="black")+
 #  geom_point(shape=21, colour="white")+
   geom_hline(yintercept=1, linetype=2)+
@@ -340,6 +431,45 @@ smd$regcvs <- round(smd$regencv, 2)
 
 
 ggsave(plot=p, filename="rejagedir.pdf", height=4, width=7)
+
+
+
+
+(p=ggplot(data=subset(md, md$rejuv != "no clear \nresponse"), aes(x=snamer, y=normexp, colour=rejuv, fill=type))+
+#  geom_boxplot(outlier.shape = NA, colour="black")+
+  geom_point(shape=21, colour="white")+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+ facet_grid(~rejuv+dir, space="free", scale="free")+
+#  facet_wrap(~rejuv, ncol=1)+
+  scale_fill_manual(values=c("cornflower blue", "forest green", "red3"), name="Sample \ntype")+
+  scale_colour_manual(values=c("orange", "black", "violet"))+
+  theme_bw()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+)
+
+
+
+ggsave(plot=p, filename="rejagedir.png",device="png", height=4, width=7)
+
+
+(p=ggplot(data=subset(md, md$rejuv != "no clear \nresponse"), aes(x=snamer, y=normexp, colour=type))+
+#  geom_boxplot(outlier.shape = NA, colour="black")+
+  geom_point(size=6, alpha=0.3)+
+  geom_hline(yintercept=1, linetype=2)+
+#  stat_summary()+
+ facet_grid(~rejuv+dir, space="free", scale="free")+
+#  facet_wrap(~rejuv, ncol=1)+
+  scale_colour_manual(values=c("cornflower blue", "forest green", "red3"), name="Sample \ntype")+
+  theme_bw()+
+  scale_y_continuous(trans="log2", breaks=c(0.125,0.25,0.5,1,2,4))+
+  theme(axis.text.x = element_text(angle = 60, hjust = 1, size=10))+
+  xlab("Marker")+
+  ylab("Expression level (normalised)")
+)
 
 
 
